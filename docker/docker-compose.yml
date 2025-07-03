@@ -28,3 +28,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Container that includes six Redis Cluster instances
+  # (three masters and three slaves - each master has a slave)
+  cluster:
+    build:
+      context: ./cluster
+    image: redis-cluster-set:latest
+    container_name: redis-cluster
+    ports:
+      - 6380:6380
+      - 6381:6381
+      - 6382:6382
+      - 6383:6383
+      - 6384:6384
+      - 6385:6385
+    volumes:
+      - ./cluster/cluster-init.sh:/usr/local/bin/cluster-init.sh
+      - ./cluster/redis.conf:/etc/redis/redis.conf
+      - ./cluster/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
