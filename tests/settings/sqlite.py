@@ -1,38 +1,23 @@
-SECRET_KEY = "django_tests_secret_key"
 CACHES = {
-    "default": {
+    "default_SQLITE": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=1", "redis://127.0.0.1:6379?db=1"],
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "doesnotexist": {
+    "doesnotexist_SQLITE": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=1",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "sample": {
+    "sample_SQLITE": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379:1,redis://127.0.0.1:6379:1",
+        "LOCATION": "redis://127.0.0.1:6379?db=1,redis://127.0.0.1:6379?db=1",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "with_prefix": {
+    "with_prefix_SQLITE": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=1",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
         "KEY_PREFIX": "test-prefix",
     },
 }
-
-# Include `django.contrib.auth` and `django.contrib.contenttypes` for mypy /
-# django-stubs.
-
-# See:
-# - https://github.com/typeddjango/django-stubs/issues/318
-# - https://github.com/typeddjango/django-stubs/issues/534
-INSTALLED_APPS = [
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-]
-
-USE_TZ = False

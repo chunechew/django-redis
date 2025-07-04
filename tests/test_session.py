@@ -9,14 +9,18 @@ from django.contrib.sessions.backends.cache import SessionStore
 from django.test import override_settings
 from django.utils import timezone
 
+from django_redis.cache import RedisCache
+from tests.settings_wrapper import SettingsWrapper
+
 
 @pytest.fixture
-def session(cache) -> Iterable[SessionStore]:
+def session(cache: RedisCache, env_name: str) -> Iterable[SessionStore]:
+    wrapper = SettingsWrapper()
+    wrapper.__setattr__("SESSION_CACHE_ALIAS", f"default_{env_name}")
     s = SessionStore()
-
     yield s
-
     s.delete()
+    wrapper.__delattr__("SESSION_CACHE_ALIAS")
 
 
 def test_new_session(session):

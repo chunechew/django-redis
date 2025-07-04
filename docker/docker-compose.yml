@@ -1,9 +1,15 @@
 services:
 
-  redis:
+  redis-primary:
     image: redis:latest
     container_name: redis-primary
-    command: redis-server --enable-debug-command yes --protected-mode no
+    # network_mode: host
+    command: >
+      redis-server
+      --enable-debug-command yes
+      --protected-mode no
+      --replica-announce-ip 127.0.0.1
+      --replica-announce-port 6390
     ports:
       - 6379:6379
     healthcheck:
@@ -11,30 +17,59 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  sentinel:
+    networks:
+      - redis-sentinel-net
+  
+  redis-secondary:
     image: redis:latest
-    container_name: redis-sentinel
+    container_name: redis-secondary
+    # network_mode: host
     depends_on:
-      redis:
+      redis-primary:
         condition: service_healthy
-    entrypoint: "redis-sentinel /redis.conf --port 26379"
+    command: >
+      redis-server
+      --port 6390
+      --enable-debug-command yes
+      --protected-mode no
+      --replicaof redis-primary 6379
+      --replica-announce-ip 127.0.0.1
+      --replica-announce-port 6390
+    ports:
+      - 6390:6390
+    healthcheck:
+      test: redis-cli -p 6390 ping
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redis-sentinel-net
+
+  redis-sentinel:
+    build:
+      context: ./sentinel
+    image: redis-sentinel-for-test:latest
+    container_name: redis-sentinel
+    # network_mode: host
+    depends_on:
+      redis-secondary:
+        condition: service_healthy
     ports:
       - 26379:26379
-    volumes:
-      - "./sentinel.conf:/redis.conf"
     healthcheck:
       test: redis-cli -p 26379 ping
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - redis-sentinel-net
 
   # Container that includes six Redis Cluster instances
   # (three masters and three slaves - each master has a slave)
-  cluster:
+  redis-cluster:
     build:
       context: ./cluster
-    image: redis-cluster-set:latest
+    image: redis-cluster-for-test:latest
     container_name: redis-cluster
     ports:
       - 6380:6380
@@ -47,3 +82,11 @@ services:
       - ./cluster/cluster-init.sh:/usr/local/bin/cluster-init.sh
       - ./cluster/redis.conf:/etc/redis/redis.conf
       - ./cluster/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
+    networks:
+      - redis-cluster-net
+
+networks:
+  redis-sentinel-net:
+    driver: bridge
+  redis-cluster-net:
+    driver: bridge

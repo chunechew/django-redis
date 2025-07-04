@@ -1,7 +1,5 @@
-SECRET_KEY = "django_tests_secret_key"
-
 CACHES = {
-    "default": {
+    "default_JSON": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=4", "redis://127.0.0.1:6379?db=4"],
         "OPTIONS": {
@@ -9,7 +7,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "doesnotexist": {
+    "doesnotexist_JSON": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=4",
         "OPTIONS": {
@@ -17,7 +15,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "sample": {
+    "sample_JSON": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=4,redis://127.0.0.1:6379?db=4",
         "OPTIONS": {
@@ -25,7 +23,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "with_prefix": {
+    "with_prefix_JSON": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=4",
         "OPTIONS": {
@@ -35,7 +33,3 @@ CACHES = {
         "KEY_PREFIX": "test-prefix",
     },
 }
-
-INSTALLED_APPS = ["django.contrib.sessions"]
-
-USE_TZ = False

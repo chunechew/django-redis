@@ -1,12 +1,13 @@
 import sys
 from collections.abc import Iterable
-from os import environ
 from pathlib import Path
+from typing import cast
 
 import pytest
+from django.conf import settings as django_settings
 from xdist.scheduler import LoadScopeScheduling
 
-from django_redis.cache import BaseCache
+from django_redis.cache import BaseCache, RedisCache
 from tests.settings_wrapper import SettingsWrapper
 
 
@@ -36,33 +37,85 @@ def settings():
 
 
 @pytest.fixture()
-def cache(cache_settings: str) -> Iterable[BaseCache]:
-    from django import setup
+def cache(env_name) -> Iterable[BaseCache]:
+    wrapper = SettingsWrapper()
 
-    environ["DJANGO_SETTINGS_MODULE"] = f"settings.{cache_settings}"
-    setup()
+    if env_name == "SQLITE":
+        # Include `django.contrib.auth` and `django.contrib.contenttypes` for mypy /
+        # django-stubs.
 
-    from django.core.cache import cache as default_cache
+        # See:
+        # - https://github.com/typeddjango/django-stubs/issues/318
+        # - https://github.com/typeddjango/django-stubs/issues/534
+
+        wrapper.__setattr__(
+            "INSTALLED_APPS",
+            [
+                "django.contrib.auth",
+                "django.contrib.contenttypes",
+                "django.contrib.sessions",
+            ],
+        )
+    else:
+       wrapper.__setattr__(
+            "INSTALLED_APPS",
+            [
+                "django.contrib.sessions",
+            ],
+        )
+
+    if env_name == "SENTINEL":
+        wrapper.__setattr__(
+            "DJANGO_REDIS_CONNECTION_FACTORY",
+            "django_redis.pool.SentinelConnectionFactory",
+        )
+    elif env_name == "HERD":
+        wrapper.__setattr__("CACHE_HERD_TIMEOUT", 2)
+    else:
+        if hasattr(django_settings, "DJANGO_REDIS_CONNECTION_FACTORY"):
+            wrapper.__delattr__("DJANGO_REDIS_CONNECTION_FACTORY")
+        if hasattr(django_settings, "CACHE_HERD_TIMEOUT"):
+            wrapper.__delattr__("CACHE_HERD_TIMEOUT")
+
+    from django.core.cache import caches
+    default_cache = cast("RedisCache", caches[f"default_{env_name}"])
 
     yield default_cache
     default_cache.clear()
 
+@pytest.fixture()
+def env_name(env_name) -> Iterable[str]:
+    yield env_name
+
 
 def pytest_generate_tests(metafunc):
-    if "cache" in metafunc.fixturenames or "session" in metafunc.fixturenames:
-        # Mark
-        settings = [
-            "sqlite",
-            "sqlite_gzip",
-            "sqlite_herd",
-            "sqlite_json",
-            "sqlite_lz4",
-            "sqlite_msgpack",
-            "sqlite_sentinel",
-            "sqlite_sentinel_opts",
-            "sqlite_sharding",
-            "sqlite_usock",
-            "sqlite_zlib",
-            "sqlite_zstd",
+    from os import environ
+
+    from django import setup
+
+    environ["DJANGO_SETTINGS_MODULE"] = "settings.django_config"
+    setup()
+
+    if (
+        "cache" in metafunc.fixturenames
+        or "env_name" in metafunc.fixturenames
+        or "session" in metafunc.fixturenames
+        or "patch_itersize_setting" in metafunc.fixturenames
+    ):
+        env_names = [
+            "SQLITE",
+            "CLUSTER",
+            "GZIP",
+            "HERD",
+            "JSON",
+            "LZ4",
+            "MSGPACK",
+            "SENTINEL",
+            "SENTINEL_OPTS",
+            "SHARDING",
+            "USOCK",
+            "ZLIB",
+            "ZSTD",
         ]
-        metafunc.parametrize("cache_settings", settings)
+        metafunc.parametrize("env_name", env_names)
+

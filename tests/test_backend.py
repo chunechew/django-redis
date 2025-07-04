@@ -20,13 +20,14 @@ from tests.settings_wrapper import SettingsWrapper
 
 
 @pytest.fixture
-def patch_itersize_setting() -> Iterable[None]:
+def patch_itersize_setting(env_name) -> Iterable[None]:
     # destroy cache to force recreation with overriden settings
-    del caches["default"]
+    default_key = f"default_{env_name}"
+    del caches[default_key]
     with override_settings(DJANGO_REDIS_SCAN_ITERSIZE=30):
         yield
     # destroy cache to force recreation with original settings
-    del caches["default"]
+    del caches[default_key]
 
 
 class TestDjangoRedisCache:
@@ -747,11 +748,11 @@ class TestDjangoRedisCache:
         next_value = next(result)
         assert next_value is not None
 
-    def test_primary_replica_switching(self, cache: RedisCache):
+    def test_primary_replica_switching(self, cache: RedisCache, env_name: str):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache = cast("RedisCache", caches["sample"])
+        cache = cast("RedisCache", caches[f"sample_{env_name}"])
         client = cache.client
         client._server = ["foo", "bar"]
         client._clients = ["Foo", "Bar"]
@@ -759,11 +760,15 @@ class TestDjangoRedisCache:
         assert client.get_client(write=True) == "Foo"
         assert client.get_client(write=False) == "Bar"
 
-    def test_primary_replica_switching_with_index(self, cache: RedisCache):
+    def test_primary_replica_switching_with_index(
+            self,
+            cache: RedisCache,
+            env_name: str,
+        ):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache = cast("RedisCache", caches["sample"])
+        cache = cast("RedisCache", caches[f"sample_{env_name}"])
         client = cache.client
         client._server = ["foo", "bar"]
         client._clients = ["Foo", "Bar"]

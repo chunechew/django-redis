@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from unittest.mock import Mock, call, patch
 
 import pytest
-from django.core.cache import DEFAULT_CACHE_ALIAS
 from django.test import override_settings
 from pytest_mock import MockerFixture
 
@@ -46,9 +45,10 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
         settings: SettingsWrapper,
+        env_name: str,
     ):
         caches = settings.CACHES
-        caches[DEFAULT_CACHE_ALIAS]["OPTIONS"]["CLOSE_CONNECTION"] = True
+        caches[f"default_{env_name}"]["OPTIONS"]["CLOSE_CONNECTION"] = True
         with override_settings(CACHES=caches):
             cache_client.set("TestClientClose", 0)
             mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
