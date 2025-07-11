@@ -19,8 +19,10 @@ def reverse_key(key: str) -> str:
 
 
 @pytest.fixture
-def ignore_exceptions_cache(settings) -> RedisCache:
+def ignore_exceptions_cache(cache, settings) -> RedisCache:
     caches_setting = settings.CACHES
+    if "doesnotexist" not in caches_setting:
+        return cache
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
     caches_setting["doesnotexist"]["OPTIONS"]["LOG_IGNORED_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
@@ -28,10 +30,14 @@ def ignore_exceptions_cache(settings) -> RedisCache:
     settings.DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
     return cast("RedisCache", caches["doesnotexist"])
 
+# ClusterClient can't the four tests with invalid connection below
+# because it requires a valid node connection.
 
 def test_get_django_omit_exceptions_many_returns_default_arg(
     ignore_exceptions_cache: RedisCache,
 ):
+    if isinstance(ignore_exceptions_cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache.get_many(["key1", "key2", "key3"]) == {}
 
@@ -40,6 +46,8 @@ def test_get_django_omit_exceptions(
     caplog: LogCaptureFixture,
     ignore_exceptions_cache: RedisCache,
 ):
+    if isinstance(ignore_exceptions_cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache._log_ignored_exceptions is True
 
@@ -100,11 +108,11 @@ class TestDjangoRedisCacheEscapePrefix:
         key_prefix_cache: RedisCache,
         with_prefix_cache: RedisCache,
     ):
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        key_prefix_cache.delete_pattern("*")
-        assert key_prefix_cache.has_key("a") is False
-        assert with_prefix_cache.get("b") == "2"
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        key_prefix_cache.delete_pattern("{same_slot}_*")
+        assert key_prefix_cache.has_key("{same_slot}_a") is False
+        assert with_prefix_cache.get("{same_slot}_b") == "2"
 
     def test_iter_keys(
         self,
@@ -114,16 +122,16 @@ class TestDjangoRedisCacheEscapePrefix:
         if isinstance(key_prefix_cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support iter_keys")
 
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        assert list(key_prefix_cache.iter_keys("*")) == ["a"]
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        assert list(key_prefix_cache.iter_keys("{same_slot}_*")) == ["{same_slot}_a"]
 
     def test_keys(self, key_prefix_cache: RedisCache, with_prefix_cache: RedisCache):
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        keys = key_prefix_cache.keys("*")
-        assert "a" in keys
-        assert "b" not in keys
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        keys = key_prefix_cache.keys("{same_slot}_*")
+        assert "{same_slot}_a" in keys
+        assert "{same_slot}_b" not in keys
 
 
 def test_custom_key_function(cache: RedisCache, settings):
@@ -135,15 +143,20 @@ def test_custom_key_function(cache: RedisCache, settings):
     if isinstance(cache.client, ShardClient):
         pytest.skip("ShardClient doesn't support get_client")
 
-    for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
-        cache.set(key, "foo")
+    for key in [
+        "{same_slot}_foo-aa",
+        "{same_slot}_foo-ab",
+        "{same_slot}_foo-bb",
+        "{same_slot}_foo-bc",
+    ]:
+        cache.set(key, "{same_slot}_foo")
 
-    res = cache.delete_pattern("*foo-a*")
+    res = cache.delete_pattern("*{same_slot}_foo-a*")
     assert bool(res) is True
 
-    keys = cache.keys("foo*")
-    assert set(keys) == {"foo-bb", "foo-bc"}
+    keys = cache.keys("{same_slot}_foo*")
+    assert set(keys) == {"{same_slot}_foo-bb", "{same_slot}_foo-bc"}
     # ensure our custom function was actually called
     assert {k.decode() for k in cache.client.get_client(write=False).keys("*")} == (
-        {"#1#foo-bc", "#1#foo-bb"}
+        {"#1#{same_slot}_foo-bc", "#1#{same_slot}_foo-bb"}
     )

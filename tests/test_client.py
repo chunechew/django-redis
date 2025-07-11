@@ -20,10 +20,15 @@ def cache_client(cache: RedisCache) -> Iterable[DefaultClient]:
 
 
 class TestClientClose:
+    """
+    TODO: ClusterClient can't pass the tests below
+    and the tests may affect session tests.
+    We need to fix these tests to work with ClusterClient later.
+    """
+
     def test_close_client_disconnect_default(
         self,
         cache_client: DefaultClient,
-        settings: SettingsWrapper,
         mocker: MockerFixture,
     ):
         if isinstance(cache_client, ClusterClient):

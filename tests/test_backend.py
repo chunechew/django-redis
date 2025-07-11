@@ -31,41 +31,41 @@ def patch_itersize_setting() -> Iterable[None]:
 
 class TestDjangoRedisCache:
     def test_setnx(self, cache: RedisCache):
-        # we should ensure there is no test_key_nx in redis
-        cache.delete("test_key_nx")
-        res = cache.get("test_key_nx")
+        # we should ensure there is no {same_slot}_test_key_nx in redis
+        cache.delete("{same_slot}_test_key_nx")
+        res = cache.get("{same_slot}_test_key_nx")
         assert res is None
 
-        res = cache.set("test_key_nx", 1, nx=True)
+        res = cache.set("{same_slot}_test_key_nx", 1, nx=True)
         assert bool(res) is True
         # test that second set will have
-        res = cache.set("test_key_nx", 2, nx=True)
+        res = cache.set("{same_slot}_test_key_nx", 2, nx=True)
         assert res is False
-        res = cache.get("test_key_nx")
+        res = cache.get("{same_slot}_test_key_nx")
         assert res == 1
 
-        cache.delete("test_key_nx")
-        res = cache.get("test_key_nx")
+        cache.delete("{same_slot}_test_key_nx")
+        res = cache.get("{same_slot}_test_key_nx")
         assert res is None
 
     def test_setnx_timeout(self, cache: RedisCache):
         # test that timeout still works for nx=True
-        res = cache.set("test_key_nx", 1, timeout=2, nx=True)
+        res = cache.set("{same_slot}_test_key_nx", 1, timeout=2, nx=True)
         assert res is True
         time.sleep(3)
-        res = cache.get("test_key_nx")
+        res = cache.get("{same_slot}_test_key_nx")
         assert res is None
 
         # test that timeout will not affect key, if it was there
-        cache.set("test_key_nx", 1)
-        res = cache.set("test_key_nx", 2, timeout=2, nx=True)
+        cache.set("{same_slot}_test_key_nx", 1)
+        res = cache.set("{same_slot}_test_key_nx", 2, timeout=2, nx=True)
         assert res is False
         time.sleep(3)
-        res = cache.get("test_key_nx")
+        res = cache.get("t{same_slot}_est_key_nx")
         assert res == 1
 
-        cache.delete("test_key_nx")
-        res = cache.get("test_key_nx")
+        cache.delete("{same_slot}_test_key_nx")
+        res = cache.get("{same_slot}_test_key_nx")
         assert res is None
 
     def test_unicode_keys(self, cache: RedisCache):
@@ -189,25 +189,29 @@ class TestDjangoRedisCache:
         assert res is True
 
     def test_get_many(self, cache: RedisCache):
-        cache.set("a", 1)
-        cache.set("b", 2)
-        cache.set("c", 3)
+        cache.set("{same_slot}_a", 1)
+        cache.set("{same_slot}_b", 2)
+        cache.set("{same_slot}_c", 3)
 
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"a": 1, "b": 2, "c": 3}
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3}
 
     def test_get_many_unicode(self, cache: RedisCache):
-        cache.set("a", "1")
-        cache.set("b", "2")
-        cache.set("c", "3")
+        cache.set("{same_slot}_a", "1")
+        cache.set("{same_slot}_b", "2")
+        cache.set("{same_slot}_c", "3")
 
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"a": "1", "b": "2", "c": "3"}
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {
+            "{same_slot}_a": "{same_slot}_1",
+            "{same_slot}_b": "2",
+            "{same_slot}_c": "3",
+        }
 
     def test_set_many(self, cache: RedisCache):
-        cache.set_many({"a": 1, "b": 2, "c": 3})
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"a": 1, "b": 2, "c": 3}
+        cache.set_many({"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3})
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3}
 
     def test_set_call_empty_pipeline(
         self,
@@ -246,14 +250,14 @@ class TestDjangoRedisCache:
             )
 
     def test_delete(self, cache: RedisCache):
-        cache.set_many({"a": 1, "b": 2, "c": 3})
-        res = cache.delete("a")
+        cache.set_many({"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3})
+        res = cache.delete("{same_slot}_a")
         assert bool(res) is True
 
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"b": 2, "c": 3}
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {"{same_slot}_b": 2, "{same_slot}_c": 3}
 
-        res = cache.delete("a")
+        res = cache.delete("{same_slot}_a")
         assert bool(res) is False
 
     @patch("django_redis.cache.DJANGO_VERSION", (3, 1, 0, "final", 0))
@@ -279,25 +283,25 @@ class TestDjangoRedisCache:
         assert res == 0
 
     def test_delete_many(self, cache: RedisCache):
-        cache.set_many({"a": 1, "b": 2, "c": 3})
-        res = cache.delete_many(["a", "b"])
+        cache.set_many({"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3})
+        res = cache.delete_many(["{same_slot}_a", "{same_slot}_b"])
         assert bool(res) is True
 
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"c": 3}
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {"{same_slot}_c": 3}
 
-        res = cache.delete_many(["a", "b"])
+        res = cache.delete_many(["{same_slot}_a", "{same_slot}_b"])
         assert bool(res) is False
 
     def test_delete_many_generator(self, cache: RedisCache):
-        cache.set_many({"a": 1, "b": 2, "c": 3})
-        res = cache.delete_many(key for key in ["a", "b"])
+        cache.set_many({"{same_slot}_a": 1, "{same_slot}_b": 2, "{same_slot}_c": 3})
+        res = cache.delete_many(key for key in ["{same_slot}_a", "{same_slot}_b"])
         assert bool(res) is True
 
-        res = cache.get_many(["a", "b", "c"])
-        assert res == {"c": 3}
+        res = cache.get_many(["{same_slot}_a", "{same_slot}_b", "{same_slot}_c"])
+        assert res == {"{same_slot}_c": 3}
 
-        res = cache.delete_many(["a", "b"])
+        res = cache.delete_many(["{same_slot}_a", "{same_slot}_b"])
         assert bool(res) is False
 
     def test_delete_many_empty_generator(self, cache: RedisCache):
@@ -487,22 +491,32 @@ class TestDjangoRedisCache:
         assert my_value == "hello world!"
 
     def test_delete_pattern(self, cache: RedisCache):
-        for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
-            cache.set(key, "foo")
+        for key in [
+            "{same_slot}_foo-aa",
+            "{same_slot}_foo-ab",
+            "{same_slot}_foo-bb",
+            "{same_slot}_foo-bc",
+        ]:
+            cache.set(key, "{same_slot}")
 
-        res = cache.delete_pattern("*foo-a*")
+        res = cache.delete_pattern("*{same_slot}_foo-a*")
         assert bool(res) is True
 
-        keys = cache.keys("foo*")
-        assert set(keys) == {"foo-bb", "foo-bc"}
+        keys = cache.keys("{same_slot}*")
+        assert set(keys) == {"{same_slot}_foo-bb", "{same_slot}_foo-bc"}
 
-        res = cache.delete_pattern("*foo-a*")
+        res = cache.delete_pattern("*{same_slot}_foo-a*")
         assert bool(res) is False
 
     @patch("django_redis.cache.RedisCache.client")
     def test_delete_pattern_with_custom_count(self, client_mock, cache: RedisCache):
-        for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
-            cache.set(key, "foo")
+        for key in [
+            "{same_slot}_foo-aa",
+            "{same_slot}_foo-ab",
+            "{same_slot}_foo-bb",
+            "{same_slot}_foo-bc",
+        ]:
+            cache.set(key, "{same_slot}_foo")
 
         cache.delete_pattern("*foo-a*", itersize=2)
 
@@ -516,8 +530,13 @@ class TestDjangoRedisCache:
         cache: RedisCache,
         settings: SettingsWrapper,
     ):
-        for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
-            cache.set(key, "foo")
+        for key in [
+            "{same_slot}_foo-aa",
+            "{same_slot}_foo-ab",
+            "{same_slot}_foo-bb",
+            "{same_slot}_foo-bc",
+        ]:
+            cache.set(key, "{same_slot}_foo")
         expected_count = settings.DJANGO_REDIS_SCAN_ITERSIZE
 
         cache.delete_pattern("*foo-a*")
@@ -538,8 +557,8 @@ class TestDjangoRedisCache:
         assert mock.called
 
     def test_ttl(self, cache: RedisCache):
-        cache.set("foo", "bar", 10)
-        ttl = cache.ttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_bar", 10)
+        ttl = cache.ttl("{same_slot}_foo")
 
         if isinstance(cache.client, herd.HerdClient):
             assert pytest.approx(ttl) == 12
@@ -547,13 +566,13 @@ class TestDjangoRedisCache:
             assert pytest.approx(ttl) == 10
 
         # Test ttl None
-        cache.set("foo", "foo", timeout=None)
-        ttl = cache.ttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_foo", timeout=None)
+        ttl = cache.ttl("{same_slot}_foo")
         assert ttl is None
 
         # Test ttl with expired key
-        cache.set("foo", "foo", timeout=-1)
-        ttl = cache.ttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_foo", timeout=-1)
+        ttl = cache.ttl("{same_slot}_foo")
         assert ttl == 0
 
         # Test ttl with not existent key
@@ -562,8 +581,8 @@ class TestDjangoRedisCache:
 
     def test_pttl(self, cache: RedisCache):
         # Test pttl
-        cache.set("foo", "bar", 10)
-        ttl = cache.pttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_bar", 10)
+        ttl = cache.pttl("{same_slot}_foo")
 
         # delta is set to 10 as precision error causes tests to fail
         if isinstance(cache.client, herd.HerdClient):
@@ -572,8 +591,8 @@ class TestDjangoRedisCache:
             assert pytest.approx(ttl, 10) == 10000
 
         # Test pttl with float value
-        cache.set("foo", "bar", 5.5)
-        ttl = cache.pttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_bar", 5.5)
+        ttl = cache.pttl("{same_slot}_foo")
 
         if isinstance(cache.client, herd.HerdClient):
             assert pytest.approx(ttl, 10) == 7500
@@ -581,13 +600,13 @@ class TestDjangoRedisCache:
             assert pytest.approx(ttl, 10) == 5500
 
         # Test pttl None
-        cache.set("foo", "foo", timeout=None)
-        ttl = cache.pttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_foo", timeout=None)
+        ttl = cache.pttl("{same_slot}_foo")
         assert ttl is None
 
         # Test pttl with expired key
-        cache.set("foo", "foo", timeout=-1)
-        ttl = cache.pttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_foo", timeout=-1)
+        ttl = cache.pttl("{same_slot}_foo")
         assert ttl == 0
 
         # Test pttl with not existent key
@@ -595,58 +614,61 @@ class TestDjangoRedisCache:
         assert ttl == 0
 
     def test_persist(self, cache: RedisCache):
-        cache.set("foo", "bar", timeout=20)
-        assert cache.persist("foo") is True
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=20)
+        assert cache.persist("{same_slot}_foo") is True
 
-        ttl = cache.ttl("foo")
+        ttl = cache.ttl("{same_slot}_foo")
         assert ttl is None
         assert cache.persist("not-existent-key") is False
 
     def test_expire(self, cache: RedisCache):
-        cache.set("foo", "bar", timeout=None)
-        assert cache.expire("foo", 20) is True
-        ttl = cache.ttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
+        assert cache.expire("{same_slot}_foo", 20) is True
+        ttl = cache.ttl("{same_slot}_foo")
         assert pytest.approx(ttl) == 20
         assert cache.expire("not-existent-key", 20) is False
 
     def test_expire_with_default_timeout(self, cache: RedisCache):
-        cache.set("foo", "bar", timeout=None)
-        assert cache.expire("foo", DEFAULT_TIMEOUT) is True
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
+        assert cache.expire("{same_slot}_foo", DEFAULT_TIMEOUT) is True
         assert cache.expire("not-existent-key", DEFAULT_TIMEOUT) is False
 
     def test_pexpire(self, cache: RedisCache):
-        cache.set("foo", "bar", timeout=None)
-        assert cache.pexpire("foo", 20500) is True
-        ttl = cache.pttl("foo")
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
+        assert cache.pexpire("{same_slot}_foo", 20500) is True
+        ttl = cache.pttl("{same_slot}_foo")
         # delta is set to 10 as precision error causes tests to fail
         assert pytest.approx(ttl, 10) == 20500
         assert cache.pexpire("not-existent-key", 20500) is False
 
     def test_pexpire_with_default_timeout(self, cache: RedisCache):
-        cache.set("foo", "bar", timeout=None)
-        assert cache.pexpire("foo", DEFAULT_TIMEOUT) is True
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
+        assert cache.pexpire("{same_slot}_foo", DEFAULT_TIMEOUT) is True
         assert cache.pexpire("not-existent-key", DEFAULT_TIMEOUT) is False
 
     def test_pexpire_at(self, cache: RedisCache):
         # Test settings expiration time 1 hour ahead by datetime.
-        cache.set("foo", "bar", timeout=None)
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
         expiration_time = datetime.datetime.now() + timedelta(hours=1)
-        assert cache.pexpire_at("foo", expiration_time) is True
-        ttl = cache.pttl("foo")
+        assert cache.pexpire_at("{same_slot}_foo", expiration_time) is True
+        ttl = cache.pttl("{same_slot}_foo")
         assert pytest.approx(ttl, 10) == timedelta(hours=1).total_seconds()
 
         # Test settings expiration time 1 hour ahead by Unix timestamp.
-        cache.set("foo", "bar", timeout=None)
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
         expiration_time = datetime.datetime.now() + timedelta(hours=2)
-        assert cache.pexpire_at("foo", int(expiration_time.timestamp() * 1000)) is True
-        ttl = cache.pttl("foo")
+        assert cache.pexpire_at(
+            "{same_slot}_foo",
+            int(expiration_time.timestamp() * 1000),
+        ) is True
+        ttl = cache.pttl("{same_slot}_foo")
         assert pytest.approx(ttl, 10) == timedelta(hours=2).total_seconds() * 1000
 
         # Test settings expiration time 1 hour in past, which effectively
         # deletes the key.
         expiration_time = datetime.datetime.now() - timedelta(hours=2)
-        assert cache.pexpire_at("foo", expiration_time) is True
-        value = cache.get("foo")
+        assert cache.pexpire_at("{same_slot}_foo", expiration_time) is True
+        value = cache.get("{same_slot}_foo")
         assert value is None
 
         expiration_time = datetime.datetime.now() + timedelta(hours=2)
@@ -654,51 +676,54 @@ class TestDjangoRedisCache:
 
     def test_expire_at(self, cache: RedisCache):
         # Test settings expiration time 1 hour ahead by datetime.
-        cache.set("foo", "bar", timeout=None)
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
         expiration_time = datetime.datetime.now() + timedelta(hours=1)
-        assert cache.expire_at("foo", expiration_time) is True
-        ttl = cache.ttl("foo")
+        assert cache.expire_at("{same_slot}_foo", expiration_time) is True
+        ttl = cache.ttl("{same_slot}_foo")
         assert pytest.approx(ttl, 1) == timedelta(hours=1).total_seconds()
 
         # Test settings expiration time 1 hour ahead by Unix timestamp.
-        cache.set("foo", "bar", timeout=None)
+        cache.set("{same_slot}_foo", "{same_slot}_bar", timeout=None)
         expiration_time = datetime.datetime.now() + timedelta(hours=2)
-        assert cache.expire_at("foo", int(expiration_time.timestamp())) is True
-        ttl = cache.ttl("foo")
+        assert cache.expire_at(
+            "{same_slot}_foo",
+            int(expiration_time.timestamp()),
+        ) is True
+        ttl = cache.ttl("{same_slot}_foo")
         assert pytest.approx(ttl, 1) == timedelta(hours=1).total_seconds() * 2
 
         # Test settings expiration time 1 hour in past, which effectively
         # deletes the key.
         expiration_time = datetime.datetime.now() - timedelta(hours=2)
-        assert cache.expire_at("foo", expiration_time) is True
-        value = cache.get("foo")
+        assert cache.expire_at("{same_slot}_foo", expiration_time) is True
+        value = cache.get("{same_slot}_foo")
         assert value is None
 
         expiration_time = datetime.datetime.now() + timedelta(hours=2)
         assert cache.expire_at("not-existent-key", expiration_time) is False
 
     def test_lock(self, cache: RedisCache):
-        lock = cache.lock("foobar")
+        lock = cache.lock("{same_slot}_foobar")
         assert lock.acquire(blocking=True)
 
-        assert cache.has_key("foobar")
+        assert cache.has_key("{same_slot}_foobar")
         lock.release()
-        assert not cache.has_key("foobar")
+        assert not cache.has_key("{same_slot}_foobar")
 
     def test_lock_not_blocking(self, cache: RedisCache):
-        lock = cache.lock("foobar")
+        lock = cache.lock("{same_slot}_foobar")
         assert lock.acquire(blocking=False)
 
-        lock2 = cache.lock("foobar")
+        lock2 = cache.lock("{same_slot}_foobar")
 
         assert not lock2.acquire(blocking=False)
 
-        assert cache.has_key("foobar")
+        assert cache.has_key("{same_slot}_foobar")
         lock.release()
-        assert not cache.has_key("foobar")
+        assert not cache.has_key("{same_slot}_foobar")
 
     def test_lock_released_by_thread(self, cache: RedisCache):
-        lock = cache.lock("foobar", thread_local=False)
+        lock = cache.lock("{same_slot}_foobar", thread_local=False)
         assert lock.acquire(blocking=True)
 
         def release_lock(lock_):
@@ -708,42 +733,42 @@ class TestDjangoRedisCache:
         t.start()
         t.join()
 
-        assert not cache.has_key("foobar")
+        assert not cache.has_key("{same_slot}_foobar")
 
     def test_iter_keys(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support iter_keys")
 
-        cache.set("foo1", 1)
-        cache.set("foo2", 1)
-        cache.set("foo3", 1)
+        cache.set("{same_slot}_foo1", 1)
+        cache.set("{same_slot}_foo2", 1)
+        cache.set("{same_slot}_foo3", 1)
 
         # Test simple result
-        result = set(cache.iter_keys("foo*"))
-        assert result == {"foo1", "foo2", "foo3"}
+        result = set(cache.iter_keys("{same_slot}_foo*"))
+        assert result == {"{same_slot}_foo1", "{same_slot}_foo2", "{same_slot}_foo3"}
 
     def test_iter_keys_itersize(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support iter_keys")
 
-        cache.set("foo1", 1)
-        cache.set("foo2", 1)
-        cache.set("foo3", 1)
+        cache.set("{same_slot}_foo1", 1)
+        cache.set("{same_slot}_foo2", 1)
+        cache.set("{same_slot}_foo3", 1)
 
         # Test limited result
-        result = list(cache.iter_keys("foo*", itersize=2))
+        result = list(cache.iter_keys("{same_slot}_foo*", itersize=2))
         assert len(result) == 3
 
     def test_iter_keys_generator(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support iter_keys")
 
-        cache.set("foo1", 1)
-        cache.set("foo2", 1)
-        cache.set("foo3", 1)
+        cache.set("{same_slot}_foo1", 1)
+        cache.set("{same_slot}_foo2", 1)
+        cache.set("{same_slot}_foo3", 1)
 
         # Test generator object
-        result = cache.iter_keys("foo*")
+        result = cache.iter_keys("{same_slot}_foo*")
         next_value = next(result)
         assert next_value is not None
 
@@ -753,7 +778,7 @@ class TestDjangoRedisCache:
 
         cache = cast("RedisCache", caches["sample"])
         client = cache.client
-        client._server = ["foo", "bar"]
+        client._server = ["{same_slot}_foo", "{same_slot}_bar"]
         client._clients = ["Foo", "Bar"]
 
         assert client.get_client(write=True) == "Foo"
@@ -765,7 +790,7 @@ class TestDjangoRedisCache:
 
         cache = cast("RedisCache", caches["sample"])
         client = cache.client
-        client._server = ["foo", "bar"]
+        client._server = ["{same_slot}_foo", "{same_slot}_bar"]
         client._clients = ["Foo", "Bar"]
 
         assert client.get_client_with_index(write=True) == ("Foo", 0)
@@ -797,113 +822,132 @@ class TestDjangoRedisCache:
         assert cache.touch("test_key_does_not_exist", 1) is False
 
     def test_touch_forever(self, cache: RedisCache):
-        cache.set("test_key", "foo", timeout=1)
+        cache.set("test_key", "{same_slot}_foo", timeout=1)
         result = cache.touch("test_key", None)
         assert result is True
         assert cache.ttl("test_key") is None
         time.sleep(2)
-        assert cache.get("test_key") == "foo"
+        assert cache.get("test_key") == "{same_slot}_foo"
 
     def test_touch_forever_nonexistent(self, cache: RedisCache):
         result = cache.touch("test_key_does_not_exist", None)
         assert result is False
 
     def test_touch_default_timeout(self, cache: RedisCache):
-        cache.set("test_key", "foo", timeout=1)
+        cache.set("test_key", "{same_slot}_foo", timeout=1)
         result = cache.touch("test_key")
         assert result is True
         time.sleep(2)
-        assert cache.get("test_key") == "foo"
+        assert cache.get("test_key") == "{same_slot}_foo"
 
     def test_clear(self, cache: RedisCache):
-        cache.set("foo", "bar")
-        value_from_cache = cache.get("foo")
-        assert value_from_cache == "bar"
+        cache.set("{same_slot}_foo", "{same_slot}_bar")
+        value_from_cache = cache.get("{same_slot}_foo")
+        assert value_from_cache == "{same_slot}_bar"
         cache.clear()
-        value_from_cache_after_clear = cache.get("foo")
+        value_from_cache_after_clear = cache.get("{same_slot}_foo")
         assert value_from_cache_after_clear is None
 
     def test_hset(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
-        cache.hset("foo_hash1", "foo1", "bar1")
-        cache.hset("foo_hash1", "foo2", "bar2")
-        assert cache.hlen("foo_hash1") == 2
-        assert cache.hexists("foo_hash1", "foo1")
-        assert cache.hexists("foo_hash1", "foo2")
+        cache.hset("{same_slot}_foo_hash1", "{same_slot}_foo1", "{same_slot}_bar1")
+        cache.hset("{same_slot}_foo_hash1", "{same_slot}_foo2", "{same_slot}_bar2")
+        assert cache.hlen("{same_slot}_foo_hash1") == 2
+        assert cache.hexists("{same_slot}_foo_hash1", "{same_slot}_foo1")
+        assert cache.hexists("{same_slot}_foo_hash1", "{same_slot}_foo2")
 
     def test_hdel(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
-        cache.hset("foo_hash2", "foo1", "bar1")
-        cache.hset("foo_hash2", "foo2", "bar2")
-        assert cache.hlen("foo_hash2") == 2
-        deleted_count = cache.hdel("foo_hash2", "foo1")
+        cache.hset("{same_slot}_foo_hash2", "{same_slot}_foo1", "{same_slot}_bar1")
+        cache.hset("{same_slot}_foo_hash2", "{same_slot}_foo2", "{same_slot}_bar2")
+        assert cache.hlen("{same_slot}_foo_hash2") == 2
+        deleted_count = cache.hdel("{same_slot}_foo_hash2", "{same_slot}_foo1")
         assert deleted_count == 1
-        assert cache.hlen("foo_hash2") == 1
-        assert not cache.hexists("foo_hash2", "foo1")
-        assert cache.hexists("foo_hash2", "foo2")
+        assert cache.hlen("{same_slot}_foo_hash2") == 1
+        assert not cache.hexists("{same_slot}_foo_hash2", "{same_slot}_foo1")
+        assert cache.hexists("{same_slot}_foo_hash2", "{same_slot}_foo2")
 
     def test_hlen(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
-        assert cache.hlen("foo_hash3") == 0
-        cache.hset("foo_hash3", "foo1", "bar1")
-        assert cache.hlen("foo_hash3") == 1
-        cache.hset("foo_hash3", "foo2", "bar2")
-        assert cache.hlen("foo_hash3") == 2
+        assert cache.hlen("{same_slot}_foo_hash3") == 0
+        cache.hset("{same_slot}_foo_hash3", "{same_slot}_foo1", "{same_slot}_bar1")
+        assert cache.hlen("{same_slot}_foo_hash3") == 1
+        cache.hset("{same_slot}_foo_hash3", "{same_slot}_foo2", "{same_slot}_bar2")
+        assert cache.hlen("{same_slot}_foo_hash3") == 2
 
     def test_hkeys(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
-        cache.hset("foo_hash4", "foo1", "bar1")
-        cache.hset("foo_hash4", "foo2", "bar2")
-        cache.hset("foo_hash4", "foo3", "bar3")
-        keys = cache.hkeys("foo_hash4")
+        cache.hset("{same_slot}_foo_hash4", "{same_slot}_foo1", "{same_slot}_bar1")
+        cache.hset("{same_slot}_foo_hash4", "{same_slot}_foo2", "{same_slot}_bar2")
+        cache.hset("{same_slot}_foo_hash4", "{same_slot}_foo3", "{same_slot}_bar3")
+        keys = cache.hkeys("{same_slot}_foo_hash4")
         assert len(keys) == 3
         for i in range(len(keys)):
-            assert keys[i] == f"foo{i + 1}"
+            assert keys[i] == f"{{same_slot}}_foo{i + 1}"
 
     def test_hexists(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
-        cache.hset("foo_hash5", "foo1", "bar1")
-        assert cache.hexists("foo_hash5", "foo1")
-        assert not cache.hexists("foo_hash5", "foo")
+        cache.hset("{same_slot}_foo_hash5", "{same_slot}_foo1", "{same_slot}_bar1")
+        assert cache.hexists("{same_slot}_foo_hash5", "{same_slot}_foo1")
+        assert not cache.hexists("{same_slot}_foo_hash5", "{same_slot}_foo")
 
     def test_sadd(self, cache: RedisCache):
-        assert cache.sadd("foo", "bar") == 1
-        assert cache.smembers("foo") == {"bar"}
+        assert cache.sadd("{same_slot}_foo", "{same_slot}_bar") == 1
+        assert cache.smembers("{same_slot}_foo") == {"{same_slot}_bar"}
 
     def test_scard(self, cache: RedisCache):
-        cache.sadd("foo", "bar", "bar2")
-        assert cache.scard("foo") == 2
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar", "{same_slot}_bar2")
+        assert cache.scard("{same_slot}_foo") == 2
 
     def test_sdiff(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sdiff("foo1", "foo2") == {"bar1"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sdiff(
+            "{same_slot}_foo1", "{same_slot}_foo2",
+        ) == {"{same_slot}_bar1"}
 
     def test_sdiffstore(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sdiffstore("foo3", "foo1", "foo2") == 1
-        assert cache.smembers("foo3") == {"bar1"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sdiffstore(
+            "{same_slot}_foo3", "{same_slot}_foo1", "{same_slot}_foo2",
+        ) == 1
+        assert cache.smembers("{same_slot}_foo3") == {"{same_slot}_bar1"}
 
     def test_sdiffstore_with_keys_version(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2", version=2)
-        cache.sadd("foo2", "bar2", "bar3", version=2)
-        assert cache.sdiffstore("foo3", "foo1", "foo2", version_keys=2) == 1
-        assert cache.smembers("foo3") == {"bar1"}
+        cache.sadd(
+            "{same_slot}_foo1",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            version=2,
+        )
+        cache.sadd(
+            "{same_slot}_foo2",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+            version=2,
+        )
+        assert cache.sdiffstore(
+            "{same_slot}_foo3",
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+            version_keys=2,
+        ) == 1
+        assert cache.smembers("{same_slot}_foo3") == {"{same_slot}_bar1"}
 
     def test_sdiffstore_with_different_keys_versions_without_initial_set_in_version(
         self,
@@ -912,9 +956,24 @@ class TestDjangoRedisCache:
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2", version=1)
-        cache.sadd("foo2", "bar2", "bar3", version=2)
-        assert cache.sdiffstore("foo3", "foo1", "foo2", version_keys=2) == 0
+        cache.sadd(
+            "{same_slot}_foo1",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            version=1,
+        )
+        cache.sadd(
+            "{same_slot}_foo2",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+            version=2,
+        )
+        assert cache.sdiffstore(
+            "{same_slot}_foo3",
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+            version_keys=2,
+        ) == 0
 
     def test_sdiffstore_with_different_keys_versions_with_initial_set_in_version(
         self,
@@ -923,109 +982,186 @@ class TestDjangoRedisCache:
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2", version=2)
-        cache.sadd("foo2", "bar2", "bar3", version=1)
-        assert cache.sdiffstore("foo3", "foo1", "foo2", version_keys=2) == 2
+        cache.sadd(
+            "{same_slot}_foo1",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            version=2,
+        )
+        cache.sadd(
+            "{same_slot}_foo2",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+            version=1,
+        )
+        assert cache.sdiffstore(
+            "{same_slot}_foo3",
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+            version_keys=2,
+        ) == 2
 
     def test_sinter(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sinter("foo1", "foo2") == {"bar2"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sinter(
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+        ) == {"{same_slot}_bar2"}
 
     def test_interstore(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sinterstore("foo3", "foo1", "foo2") == 1
-        assert cache.smembers("foo3") == {"bar2"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sinterstore(
+            "{same_slot}_foo3",
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+        ) == 1
+        assert cache.smembers("{same_slot}_foo3") == {"{same_slot}_bar2"}
 
     def test_sismember(self, cache: RedisCache):
-        cache.sadd("foo", "bar")
-        assert cache.sismember("foo", "bar") is True
-        assert cache.sismember("foo", "bar2") is False
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar")
+        assert cache.sismember("{same_slot}_foo", "{same_slot}_bar") is True
+        assert cache.sismember("{same_slot}_foo", "{same_slot}_bar2") is False
 
     def test_smove(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.smove("foo1", "foo2", "bar1") is True
-        assert cache.smove("foo1", "foo2", "bar4") is False
-        assert cache.smembers("foo1") == {"bar2"}
-        assert cache.smembers("foo2") == {"bar1", "bar2", "bar3"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.smove(
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+            "{same_slot}_bar1",
+        ) is True
+        assert cache.smove(
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+            "{same_slot}_bar4",
+        ) is False
+        assert cache.smembers("{same_slot}_foo1") == {"{same_slot}_bar2"}
+        assert cache.smembers("{same_slot}_foo2") == {
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+        }
 
     def test_spop_default_count(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        assert cache.spop("foo") in {"bar1", "bar2"}
-        assert cache.smembers("foo") in [{"bar1"}, {"bar2"}]
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        assert cache.spop("{same_slot}_foo") in {"{same_slot}_bar1", "{same_slot}_bar2"}
+        assert cache.smembers("{same_slot}_foo") in [
+            {"{same_slot}_bar1"},
+            {"{same_slot}_bar2"},
+        ]
 
     def test_spop(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        assert cache.spop("foo", 1) in [{"bar1"}, {"bar2"}]
-        assert cache.smembers("foo") in [{"bar1"}, {"bar2"}]
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        assert cache.spop("{same_slot}_foo", 1) in [
+            {"{same_slot}_bar1"},
+            {"{same_slot}_bar2"},
+        ]
+        assert cache.smembers("{same_slot}_foo") in [
+            {"{same_slot}_bar1"},
+            {"{same_slot}_bar2"},
+        ]
 
     def test_srandmember_default_count(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        assert cache.srandmember("foo") in {"bar1", "bar2"}
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        assert cache.srandmember("{same_slot}_foo") in {
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+        }
 
     def test_srandmember(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        assert cache.srandmember("foo", 1) in [["bar1"], ["bar2"]]
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        assert cache.srandmember("{same_slot}_foo", 1) in [
+            ["{same_slot}_bar1"],
+            ["{same_slot}_bar2"],
+        ]
 
     def test_srem(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        assert cache.srem("foo", "bar1") == 1
-        assert cache.srem("foo", "bar3") == 0
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        assert cache.srem("{same_slot}_foo", "{same_slot}_bar1") == 1
+        assert cache.srem("{same_slot}_foo", "{same_slot}_bar3") == 0
 
     def test_sscan(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        items = cache.sscan("foo")
-        assert items == {"bar1", "bar2"}
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        items = cache.sscan("{same_slot}_foo")
+        assert items == {"{same_slot}_bar1", "{same_slot}_bar2"}
 
     def test_sscan_with_match(self, cache: RedisCache):
         if cache.client._has_compression_enabled():
             pytest.skip("Compression is enabled, sscan with match is not supported")
-        cache.sadd("foo", "bar1", "bar2", "zoo")
-        items = cache.sscan("foo", match="zoo")
-        assert items == {"zoo"}
+        cache.sadd(
+            "{same_slot}_foo",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_zoo"
+        )
+        items = cache.sscan("{same_slot}_foo", match="{same_slot}_zoo")
+        assert items == {"{same_slot}_zoo"}
 
     def test_sscan_iter(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2")
-        items = cache.sscan_iter("foo")
-        assert set(items) == {"bar1", "bar2"}
+        cache.sadd("{same_slot}_foo", "{same_slot}_bar1", "{same_slot}_bar2")
+        items = cache.sscan_iter("{same_slot}_foo")
+        assert set(items) == {"{same_slot}_bar1", "{same_slot}_bar2"}
 
     def test_sscan_iter_with_match(self, cache: RedisCache):
         if cache.client._has_compression_enabled():
             pytest.skip(
                 "Compression is enabled, sscan_iter with match is not supported",
             )
-        cache.sadd("foo", "bar1", "bar2", "zoo")
-        items = cache.sscan_iter("foo", match="bar*")
-        assert set(items) == {"bar1", "bar2"}
+        cache.sadd(
+            "{same_slot}_foo",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_zoo",
+        )
+        items = cache.sscan_iter("{same_slot}_foo", match="{same_slot}_bar*")
+        assert set(items) == {"{same_slot}_bar1", "{same_slot}_bar2"}
 
     def test_smismember(self, cache: RedisCache):
-        cache.sadd("foo", "bar1", "bar2", "bar3")
-        assert cache.smismember("foo", "bar1", "bar2", "xyz") == [True, True, False]
+        cache.sadd(
+            "{same_slot}_foo",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+        )
+        assert cache.smismember(
+            "{same_slot}_foo",
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_xyz",
+        ) == [True, True, False]
 
     def test_sunion(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sunion("foo1", "foo2") == {"bar1", "bar2", "bar3"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sunion("{same_slot}_foo1", "{same_slot}_foo2") == {"{same_slot}_bar1", "{same_slot}_bar2", "{same_slot}_bar3"}
 
     def test_sunionstore(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache.sadd("foo1", "bar1", "bar2")
-        cache.sadd("foo2", "bar2", "bar3")
-        assert cache.sunionstore("foo3", "foo1", "foo2") == 3
-        assert cache.smembers("foo3") == {"bar1", "bar2", "bar3"}
+        cache.sadd("{same_slot}_foo1", "{same_slot}_bar1", "{same_slot}_bar2")
+        cache.sadd("{same_slot}_foo2", "{same_slot}_bar2", "{same_slot}_bar3")
+        assert cache.sunionstore(
+            "{same_slot}_foo3",
+            "{same_slot}_foo1",
+            "{same_slot}_foo2",
+        ) == 3
+        assert cache.smembers("{same_slot}_foo3") == {
+            "{same_slot}_bar1",
+            "{same_slot}_bar2",
+            "{same_slot}_bar3",
+        }
