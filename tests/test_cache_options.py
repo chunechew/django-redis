@@ -4,6 +4,7 @@ from typing import cast
 
 import pytest
 from django.core.cache import caches
+from django.test import override_settings
 from pytest import LogCaptureFixture
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -20,15 +21,16 @@ def reverse_key(key: str) -> str:
 
 
 @pytest.fixture
-def ignore_exceptions_cache(settings, env_name: str) -> RedisCache:
+def ignore_exceptions_cache(caches, settings, suffix: str) -> RedisCache:
+    doesnotexist_name = f"doesnotexist{suffix}"
     caches_setting = copy.deepcopy(settings.CACHES)
-    key_name = f"doesnotexist_{env_name}"
-    caches_setting[key_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
-    caches_setting[key_name]["OPTIONS"]["LOG_IGNORED_EXCEPTIONS"] = True
+    caches_setting[doesnotexist_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
+    caches_setting[doesnotexist_name]["OPTIONS"]["LOG_IGNORED_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
     settings.DJANGO_REDIS_IGNORE_EXCEPTIONS = True
     settings.DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
-    return cast("RedisCache", caches[key_name])
+
+    return cast("RedisCache", caches[doesnotexist_name])
 
 
 def test_get_django_omit_exceptions_many_returns_default_arg(
@@ -41,15 +43,16 @@ def test_get_django_omit_exceptions_many_returns_default_arg(
 def test_get_django_omit_exceptions(
     caplog: LogCaptureFixture,
     ignore_exceptions_cache: RedisCache,
-    env_name: str,
+    suffix: str,
 ):
+    default_name = f"default{suffix}"
+
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache._log_ignored_exceptions is True
 
     assert ignore_exceptions_cache.get("key") is None
-    default_key = f"default_{env_name}"
-    assert ignore_exceptions_cache.get("key", default_key) == default_key
-    assert ignore_exceptions_cache.get("key", default=default_key) == default_key
+    assert ignore_exceptions_cache.get("key", default_name) == default_name
+    assert ignore_exceptions_cache.get("key", default=default_name) == default_name
 
     assert len(caplog.records) == 3
     assert all(
@@ -58,44 +61,43 @@ def test_get_django_omit_exceptions(
     )
 
 
-def test_get_django_omit_exceptions_priority_1(settings, env_name: str):
+def test_get_django_omit_exceptions_priority_1(settings, suffix: str):
+    doesnotexist_name = f"doesnotexist{suffix}"
+
     caches_setting = copy.deepcopy(settings.CACHES)
-    key_name = f"doesnotexist_{env_name}"
-    caches_setting[key_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
+    caches_setting[doesnotexist_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
     settings.DJANGO_REDIS_IGNORE_EXCEPTIONS = False
-    cache = cast("RedisCache", caches[key_name])
+    cache = cast("RedisCache", caches[doesnotexist_name])
     assert cache._ignore_exceptions is True
     assert cache.get("key") is None
 
 
-def test_get_django_omit_exceptions_priority_2(settings, env_name: str):
+def test_get_django_omit_exceptions_priority_2(settings, suffix: str):
+    doesnotexist_name = f"doesnotexist{suffix}"
     caches_setting = copy.deepcopy(settings.CACHES)
-    key_name = f"doesnotexist_{env_name}"
-    caches_setting[key_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = False
+    caches_setting[doesnotexist_name]["OPTIONS"]["IGNORE_EXCEPTIONS"] = False
     settings.CACHES = caches_setting
     settings.DJANGO_REDIS_IGNORE_EXCEPTIONS = True
-    cache = cast("RedisCache", caches[key_name])
+    cache = cast("RedisCache", caches[doesnotexist_name])
     assert cache._ignore_exceptions is False
     with pytest.raises(RedisConnectionError):
         cache.get("key")
 
 
 @pytest.fixture
-def key_prefix_cache(
-        cache: RedisCache,
-        settings,
-        env_name: str,
-    ) -> Iterable[RedisCache]:
+def key_prefix_cache(cache: RedisCache, settings, suffix: str) -> Iterable[RedisCache]:
+    default_name = f"default{suffix}"
     caches_setting = copy.deepcopy(settings.CACHES)
-    caches_setting[f"default_{env_name}"]["KEY_PREFIX"] = "*"
+    caches_setting[default_name]["KEY_PREFIX"] = "*"
     settings.CACHES = caches_setting
     yield cache
 
 
 @pytest.fixture
-def with_prefix_cache(env_name: str) -> Iterable[RedisCache]:
-    with_prefix = cast("RedisCache", caches[f"with_prefix_{env_name}"])
+def with_prefix_cache(suffix: str) -> Iterable[RedisCache]:
+    with_prefix_name = f"with_prefix{suffix}"
+    with_prefix = cast("RedisCache", caches[with_prefix_name])
     yield with_prefix
     with_prefix.clear()
 
@@ -132,13 +134,11 @@ class TestDjangoRedisCacheEscapePrefix:
         assert "b" not in keys
 
 
-def test_custom_key_function(cache: RedisCache, settings, env_name: str):
+def test_custom_key_function(cache: RedisCache, settings, suffix: str):
+    default_name = f"default{suffix}"
     caches_setting = copy.deepcopy(settings.CACHES)
-    default_key = f"default_{env_name}"
-    caches_setting[default_key]["KEY_FUNCTION"] = "test_cache_options.make_key"
-    caches_setting[default_key]["REVERSE_KEY_FUNCTION"] = (
-        "test_cache_options.reverse_key"
-    )
+    caches_setting[default_name]["KEY_FUNCTION"] = "test_cache_options.make_key"
+    caches_setting[default_name]["REVERSE_KEY_FUNCTION"] = "test_cache_options.reverse_key"
     settings.CACHES = caches_setting
 
     if isinstance(cache.client, ShardClient):

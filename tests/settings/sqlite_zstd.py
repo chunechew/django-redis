@@ -1,5 +1,5 @@
 CACHES = {
-    "default_ZSTD": {
+    "default_zstd": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=13", "redis://127.0.0.1:6379?db=13"],
         "OPTIONS": {
@@ -7,7 +7,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zstd.ZStdCompressor",
         },
     },
-    "doesnotexist_ZSTD": {
+    "doesnotexist_zstd": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=13",
         "OPTIONS": {
@@ -15,7 +15,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zstd.ZStdCompressor",
         },
     },
-    "sample_ZSTD": {
+    "sample_zstd": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=13,redis://127.0.0.1:6379?db=13",
         "OPTIONS": {
@@ -23,7 +23,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zstd.ZStdCompressor",
         },
     },
-    "with_prefix_ZSTD": {
+    "with_prefix_zstd": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=13",
         "OPTIONS": {

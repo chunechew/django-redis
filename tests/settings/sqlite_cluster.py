@@ -5,7 +5,7 @@ conn_factory = "django_redis.pool.ClusterConnectionFactory"
 conn_client_class = "redis.cluster.RedisCluster"
 
 CACHES = {
-    "default_CLUSTER": {
+    "default_cluster": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "OPTIONS": {
@@ -21,7 +21,7 @@ CACHES = {
             },
         },
     },
-    "doesnotexist_CLUSTER": {
+    "doesnotexist_cluster": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://missing_service:6380",
         "OPTIONS": {
@@ -37,7 +37,7 @@ CACHES = {
             },
         },
     },
-    "sample_CLUSTER": {
+    "sample_cluster": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "OPTIONS": {
@@ -53,7 +53,7 @@ CACHES = {
             },
         },
     },
-    "with_prefix_CLUSTER": {
+    "with_prefix_cluster": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "KEY_PREFIX": "test-prefix",

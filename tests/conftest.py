@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from django.conf import settings as django_settings
+from django.utils.connection import ConnectionProxy
 from xdist.scheduler import LoadScopeScheduling
 
 from django_redis.cache import BaseCache, RedisCache
-from tests.settings_wrapper import SettingsWrapper
+from tests.settings_wrapper import CacheHandler, SettingsWrapper
 
 
 class FixtureScheduling(LoadScopeScheduling):
@@ -29,93 +29,100 @@ def pytest_configure(config):
 
 
 @pytest.fixture()
-def settings():
-    """A Django settings object which restores changes after the testrun"""
-    wrapper = SettingsWrapper()
-    yield wrapper
-    wrapper.finalize()
-
-
-@pytest.fixture()
-def cache(env_name) -> Iterable[BaseCache]:
-    wrapper = SettingsWrapper()
-
-    if env_name == "SQLITE":
-        # Include `django.contrib.auth` and `django.contrib.contenttypes` for mypy /
-        # django-stubs.
-
-        # See:
-        # - https://github.com/typeddjango/django-stubs/issues/318
-        # - https://github.com/typeddjango/django-stubs/issues/534
-
-        wrapper.__setattr__(
-            "INSTALLED_APPS",
-            [
-                "django.contrib.auth",
-                "django.contrib.contenttypes",
-                "django.contrib.sessions",
-            ],
-        )
-    else:
-       wrapper.__setattr__(
-            "INSTALLED_APPS",
-            [
-                "django.contrib.sessions",
-            ],
-        )
-
-    if env_name == "SENTINEL":
-        wrapper.__setattr__(
-            "DJANGO_REDIS_CONNECTION_FACTORY",
-            "django_redis.pool.SentinelConnectionFactory",
-        )
-    elif env_name == "HERD":
-        wrapper.__setattr__("CACHE_HERD_TIMEOUT", 2)
-    else:
-        if hasattr(django_settings, "DJANGO_REDIS_CONNECTION_FACTORY"):
-            wrapper.__delattr__("DJANGO_REDIS_CONNECTION_FACTORY")
-        if hasattr(django_settings, "CACHE_HERD_TIMEOUT"):
-            wrapper.__delattr__("CACHE_HERD_TIMEOUT")
-
-    from django.core.cache import caches
-    default_cache = cast("RedisCache", caches[f"default_{env_name}"])
-
-    yield default_cache
-    default_cache.clear()
-
-@pytest.fixture()
-def env_name(env_name) -> Iterable[str]:
-    yield env_name
-
-
-def pytest_generate_tests(metafunc):
+def base(env_name):
     from os import environ
 
     from django import setup
 
-    environ["DJANGO_SETTINGS_MODULE"] = "settings.django_config"
+    environ["DJANGO_SETTINGS_MODULE"] = (
+        "settings.django_config"
+        if env_name != "sqlite"
+        else "settings.django_config_sqlite"
+    )
+
     setup()
 
-    if (
-        "cache" in metafunc.fixturenames
-        or "env_name" in metafunc.fixturenames
-        or "session" in metafunc.fixturenames
-        or "patch_itersize_setting" in metafunc.fixturenames
-    ):
+    # from tests.settings_wrapper import CacheHandler
+
+    default_name = f"default_{env_name}"
+
+    wrapper = SettingsWrapper()
+    wrapper.__setattr__("SESSION_CACHE_ALIAS", default_name)
+
+    if env_name == "herd":
+        wrapper.__setattr__("CACHE_HERD_TIMEOUT", 2)
+    else:
+        wrapper.__delattr__("CACHE_HERD_TIMEOUT")
+
+    # wrapper.finalize()
+    # wrapper = SettingsWrapper()
+
+    # from django.core.cache import caches
+    from django.core import cache
+
+    # cache.caches = None
+    # cache.caches = CacheHandler()
+
+    default_cache = ConnectionProxy(cache.caches, default_name)
+    # default_cache = cast("RedisCache", caches[default_name])
+    cache.cache = default_cache
+
+    yield wrapper, cache.caches, default_cache
+    # default_cache.clear()
+    # default_cache.close()
+
+
+@pytest.fixture()
+def settings(base):
+    """A Django settings object which restores changes after the testrun"""
+    yield base[0]
+    base[0].finalize()
+
+
+@pytest.fixture()
+def caches(base) -> Iterable[CacheHandler]:
+    yield base[1]
+
+
+@pytest.fixture()
+def cache(base) -> Iterable[BaseCache]:
+    yield base[2]
+    base[2].clear()
+
+
+@pytest.fixture()
+def suffix(env_name) -> Iterable[str]:
+    yield f"_{env_name}"
+
+
+def pytest_generate_tests(metafunc):
+    # import sys
+
+    # sys.setrecursionlimit(100)
+
+    # from os import environ
+
+    # from django import setup
+
+    # environ["DJANGO_SETTINGS_MODULE"] = "settings.django_config"
+
+    # setup()
+
+    if "base" in metafunc.fixturenames or "suffix" in metafunc.fixturenames:
+        # Mark
         env_names = [
-            "SQLITE",
-            "CLUSTER",
-            "GZIP",
-            "HERD",
-            "JSON",
-            "LZ4",
-            "MSGPACK",
-            "SENTINEL",
-            "SENTINEL_OPTS",
-            "SHARDING",
-            "USOCK",
-            "ZLIB",
-            "ZSTD",
+            "sqlite",
+            # "cluster",
+            "gzip",
+            "herd",
+            "json",
+            "lz4",
+            "msgpack",
+            "sentinel",
+            "sentinel_opts",
+            "sharding",
+            "usock",
+            "zlib",
+            "zstd",
         ]
         metafunc.parametrize("env_name", env_names)
-

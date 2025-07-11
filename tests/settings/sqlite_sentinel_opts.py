@@ -3,7 +3,7 @@ SENTINELS = [("127.0.0.1", 26379)]
 conn_factory = "django_redis.pool.SentinelConnectionFactory"
 
 CACHES = {
-    "default_SENTINEL_OPTS": {
+    "default_sentinel_opts": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://default_service?db=8"],
         "OPTIONS": {
@@ -12,7 +12,7 @@ CACHES = {
             "CONNECTION_FACTORY": conn_factory,
         },
     },
-    "doesnotexist": {
+    "doesnotexist_sentinel_opts": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://missing_service?db=8",
         "OPTIONS": {
@@ -21,7 +21,7 @@ CACHES = {
             "CONNECTION_FACTORY": conn_factory,
         },
     },
-    "sample_SENTINEL_OPTS": {
+    "sample_sentinel_opts": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://default_service?db=8",
         "OPTIONS": {
@@ -30,7 +30,7 @@ CACHES = {
             "CONNECTION_FACTORY": conn_factory,
         },
     },
-    "with_prefix_SENTINEL_OPTS": {
+    "with_prefix_sentinel_opts": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://default_service?db=8",
         "KEY_PREFIX": "test-prefix",

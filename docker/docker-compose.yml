@@ -17,8 +17,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - redis-sentinel-net
+    # networks:
+    #   - redis-sentinel-net
   
   redis-secondary:
     image: redis:latest
@@ -42,8 +42,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - redis-sentinel-net
+    # networks:
+    #   - redis-sentinel-net
 
   redis-sentinel:
     build:
@@ -61,8 +61,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - redis-sentinel-net
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+    # command: ["redis-server", "/etc/redis/sentinel.conf", "--port", "26379", "--bind", "0.0.0.0", "--sentinel", "--enable-debug-command", "yes", "--protected-mode", "no", "--loglevel", "debug"]
+    # networks:
+    #   - redis-sentinel-net
 
   # Container that includes six Redis Cluster instances
   # (three masters and three slaves - each master has a slave)
@@ -71,6 +74,7 @@ services:
       context: ./cluster
     image: redis-cluster-for-test:latest
     container_name: redis-cluster
+    network_mode: host
     ports:
       - 6380:6380
       - 6381:6381
@@ -82,11 +86,11 @@ services:
       - ./cluster/cluster-init.sh:/usr/local/bin/cluster-init.sh
       - ./cluster/redis.conf:/etc/redis/redis.conf
       - ./cluster/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
-    networks:
-      - redis-cluster-net
+#     networks:
+#       - redis-cluster-net
 
-networks:
-  redis-sentinel-net:
-    driver: bridge
-  redis-cluster-net:
-    driver: bridge
+# networks:
+#   redis-sentinel-net:
+#     driver: bridge
+#   redis-cluster-net:
+#     driver: bridge

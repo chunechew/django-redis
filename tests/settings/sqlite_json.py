@@ -1,5 +1,5 @@
 CACHES = {
-    "default_JSON": {
+    "default_json": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=4", "redis://127.0.0.1:6379?db=4"],
         "OPTIONS": {
@@ -7,7 +7,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "doesnotexist_JSON": {
+    "doesnotexist_json": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=4",
         "OPTIONS": {
@@ -15,7 +15,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "sample_JSON": {
+    "sample_json": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=4,redis://127.0.0.1:6379?db=4",
         "OPTIONS": {
@@ -23,7 +23,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
         },
     },
-    "with_prefix_JSON": {
+    "with_prefix_json": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=4",
         "OPTIONS": {

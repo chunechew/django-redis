@@ -5,13 +5,12 @@ import pytest
 from django.test import override_settings
 from pytest_mock import MockerFixture
 
-from django_redis.cache import RedisCache
 from django_redis.client import DefaultClient, ShardClient
 from tests.settings_wrapper import SettingsWrapper
 
 
 @pytest.fixture()
-def cache_client(cache: RedisCache) -> Iterable[DefaultClient]:
+def cache_client(cache) -> Iterable[DefaultClient]:
     client = cache.client
     client.set("TestClientClose", 0)
     yield client
@@ -45,10 +44,10 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
         settings: SettingsWrapper,
-        env_name: str,
+        suffix: str,
     ):
         caches = settings.CACHES
-        caches[f"default_{env_name}"]["OPTIONS"]["CLOSE_CONNECTION"] = True
+        caches[f"default{suffix}"]["OPTIONS"]["CLOSE_CONNECTION"] = True
         with override_settings(CACHES=caches):
             cache_client.set("TestClientClose", 0)
             mock = mocker.patch.object(cache_client.connection_factory, "disconnect")

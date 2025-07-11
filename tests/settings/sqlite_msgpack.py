@@ -1,5 +1,5 @@
 CACHES = {
-    "default_MSGPACK": {
+    "default_msgpack": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=6", "redis://127.0.0.1:6379?db=6"],
         "OPTIONS": {
@@ -7,7 +7,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.msgpack.MSGPackSerializer",
         },
     },
-    "doesnotexist_MSGPACK": {
+    "doesnotexist_msgpack": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=6",
         "OPTIONS": {
@@ -15,7 +15,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.msgpack.MSGPackSerializer",
         },
     },
-    "sample_MSGPACK": {
+    "sample_msgpack": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=6,redis://127.0.0.1:6379?db=6",
         "OPTIONS": {
@@ -23,7 +23,7 @@ CACHES = {
             "SERIALIZER": "django_redis.serializers.msgpack.MSGPackSerializer",
         },
     },
-    "with_prefix_MSGPACK": {
+    "with_prefix_msgpack": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=6",
         "OPTIONS": {

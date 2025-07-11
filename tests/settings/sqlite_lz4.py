@@ -1,5 +1,5 @@
 CACHES = {
-    "default_LZ4": {
+    "default_lz4": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=5", "redis://127.0.0.1:6379?db=5"],
         "OPTIONS": {
@@ -7,7 +7,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.lz4.Lz4Compressor",
         },
     },
-    "doesnotexist_LZ4": {
+    "doesnotexist_lz4": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=5",
         "OPTIONS": {
@@ -15,7 +15,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.lz4.Lz4Compressor",
         },
     },
-    "sample_LZ4": {
+    "sample_lz4": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=5,redis://127.0.0.1:6379?db=5",
         "OPTIONS": {
@@ -23,7 +23,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.lz4.Lz4Compressor",
         },
     },
-    "with_prefix_LZ4": {
+    "with_prefix_lz4": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=5",
         "OPTIONS": {
