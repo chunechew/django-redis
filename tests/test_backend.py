@@ -7,8 +7,7 @@ from typing import Union, cast
 from unittest.mock import patch
 
 import pytest
-
-# from django.core.cache import CacheHandler
+from django.core.cache import caches
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
 from django.test import override_settings
 from pytest_mock import MockerFixture
@@ -17,18 +16,17 @@ from django_redis.cache import RedisCache
 from django_redis.client import ShardClient, herd
 from django_redis.serializers.json import JSONSerializer
 from django_redis.serializers.msgpack import MSGPackSerializer
-from tests.settings_wrapper import CacheHandler, SettingsWrapper
+from tests.settings_wrapper import SettingsWrapper
 
 
 @pytest.fixture
-def patch_itersize_setting(caches, suffix: str) -> Iterable[None]:
-    default_name = f"default{suffix}"
-    # destroy cache to force recreation with original settings
-    del caches[default_name]
+def patch_itersize_setting() -> Iterable[None]:
+    # destroy cache to force recreation with overriden settings
+    del caches["default"]
     with override_settings(DJANGO_REDIS_SCAN_ITERSIZE=30):
         yield
     # destroy cache to force recreation with original settings
-    del caches[default_name]
+    del caches["default"]
 
 
 class TestDjangoRedisCache:
@@ -514,8 +512,8 @@ class TestDjangoRedisCache:
     def test_delete_pattern_with_settings_default_scan_count(
         self,
         client_mock,
-        cache: RedisCache,
         patch_itersize_setting,
+        cache: RedisCache,
         settings: SettingsWrapper,
     ):
         for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
@@ -749,11 +747,11 @@ class TestDjangoRedisCache:
         next_value = next(result)
         assert next_value is not None
 
-    def test_primary_replica_switching(self, caches: CacheHandler, cache: RedisCache, suffix: str):
+    def test_primary_replica_switching(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache = cast("RedisCache", caches[f"sample{suffix}"])
+        cache = cast("RedisCache", caches["sample"])
         client = cache.client
         client._server = ["foo", "bar"]
         client._clients = ["Foo", "Bar"]
@@ -761,16 +759,11 @@ class TestDjangoRedisCache:
         assert client.get_client(write=True) == "Foo"
         assert client.get_client(write=False) == "Bar"
 
-    def test_primary_replica_switching_with_index(
-            self,
-            caches: CacheHandler,
-            cache: RedisCache,
-            suffix: str,
-        ):
+    def test_primary_replica_switching_with_index(self, cache: RedisCache):
         if isinstance(cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support get_client")
 
-        cache = cast("RedisCache", caches[f"sample{suffix}"])
+        cache = cast("RedisCache", caches["sample"])
         client = cache.client
         client._server = ["foo", "bar"]
         client._clients = ["Foo", "Bar"]

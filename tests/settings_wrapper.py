@@ -1,7 +1,5 @@
 from typing import TYPE_CHECKING
 
-from django.core.cache import CacheHandler as DjangoCacheHandler
-
 if TYPE_CHECKING:
     from django.test import override_settings
 
@@ -39,7 +37,3 @@ class SettingsWrapper:
             override.disable()
 
         del self._to_restore[:]
-
-
-class CacheHandler(DjangoCacheHandler):
-    thread_critical = True

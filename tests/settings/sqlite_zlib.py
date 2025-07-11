@@ -1,7 +1,7 @@
 SECRET_KEY = "django_tests_secret_key"
 
 CACHES = {
-    "default_zlib": {
+    "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=12", "redis://127.0.0.1:6379?db=12"],
         "OPTIONS": {
@@ -9,7 +9,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         },
     },
-    "doesnotexist_zlib": {
+    "doesnotexist": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=12",
         "OPTIONS": {
@@ -17,7 +17,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         },
     },
-    "sample_zlib": {
+    "sample": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=12,redis://127.0.0.1:6379?db=12",
         "OPTIONS": {
@@ -25,7 +25,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
         },
     },
-    "with_prefix_zlib": {
+    "with_prefix": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=12",
         "OPTIONS": {

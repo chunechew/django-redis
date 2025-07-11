@@ -74,7 +74,7 @@ services:
       context: ./cluster
     image: redis-cluster-for-test:latest
     container_name: redis-cluster
-    network_mode: host
+    # network_mode: host
     ports:
       - 6380:6380
       - 6381:6381

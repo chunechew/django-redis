@@ -1,22 +1,22 @@
 SECRET_KEY = "django_tests_secret_key"
 
 CACHES = {
-    "default_usock": {
+    "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["unix:///tmp/redis.sock?db=11", "unix:///tmp/redis.sock?db=11"],
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "doesnotexist_usock": {
+    "doesnotexist": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=11",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "sample_usock": {
+    "sample": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=11,redis://127.0.0.1:6379?db=11",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "with_prefix_usock": {
+    "with_prefix": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=11",
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},

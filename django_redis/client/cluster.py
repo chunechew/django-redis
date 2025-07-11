@@ -1,10 +1,8 @@
 from typing import TYPE_CHECKING, Optional
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from django.core.cache.backends.base import get_key_func
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
-from redis.cluster import ClusterNode
 
 from django_redis.client.default import DefaultClient
 
@@ -49,9 +47,6 @@ class ClusterClient(DefaultClient):
             or "django_redis.util.default_reverse_key",
         )
 
-        if not self._server:
-            self.get_server(self._options)
-
         if not isinstance(self._server, (list, tuple, set)):
             self._server = self._server.split(",")
 
@@ -76,67 +71,3 @@ class ClusterClient(DefaultClient):
         self.connection_factory = ClusterConnectionFactory(
             options=self._options,
         )
-
-    def get_server(self, options):
-        redis_client_kwargs = options.get("REDIS_CLIENT_KWARGS", {})
-
-        if "cluster_nodes" not in redis_client_kwargs:
-            error_message = (
-                "Missing connections string or 'cluster_nodes' "
-                "in REDIS_CLIENT_KWARGS. "
-                "Please provide a list of cluster nodes."
-            )
-            raise ImproperlyConfigured(error_message)
-
-        cluster_nodes = redis_client_kwargs["cluster_nodes"]
-
-        if isinstance(cluster_nodes, (list, tuple)):
-            nodes = cluster_nodes
-        elif isinstance(cluster_nodes, str):
-            nodes = cluster_nodes.split(",")
-        elif isinstance(cluster_nodes, ClusterNode):
-            nodes = [cluster_nodes]
-
-        self._server = self.parse_url(options, nodes)
-
-        if len(self._server) == 0:
-            error_message = (
-                "No valid cluster nodes provided in REDIS_CLIENT_KWARGS."
-            )
-            raise ImproperlyConfigured(error_message)
-
-    def parse_url(self, options, nodes):
-        _server = []
-        for node in nodes:
-            if isinstance(node, ClusterNode):
-                host = node.host
-                port = node.port
-                username = options.get("username", "")
-                password = options.get("password", "")
-                ssl = options.get("ssl", False)
-                protocol = "rediss" if ssl else "redis"
-                url_str = f"{host}:{port}"
-                if username or password:
-                    url_str = f"{username}:{password}@{url_str}"
-                url_str = f"{protocol}://{url_str}"
-                url = urlparse(url_str)
-            elif isinstance(node, str):
-                url = urlparse(node)
-            else:
-                continue
-            query_params = parse_qs(url.query)
-            if "is_master" in query_params:
-                del query_params["is_master"]
-            new_query = urlencode(query_params, doseq=True)
-            new_url = urlunparse(
-                (
-                    url.scheme,
-                    url.netloc,
-                    url.path,
-                    url.params,
-                    new_query,
-                    url.fragment,
-                ),
-            )
-            _server.append(new_url)
-        return _server

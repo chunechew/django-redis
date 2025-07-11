@@ -13,9 +13,7 @@ from django_redis.cache import RedisCache
 
 
 @pytest.fixture
-def session(cache: RedisCache) -> Iterable[SessionStore]:
-    from django.contrib.sessions.backends.cache import SessionStore
-
+def session(cache) -> Iterable[RedisCache]:
     s = SessionStore()
 
     yield s

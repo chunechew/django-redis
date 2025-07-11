@@ -1,9 +1,11 @@
+SECRET_KEY = "django_tests_secret_key"
+
 DJANGO_REDIS_CONNECTION_FACTORY = "django_redis.pool.SentinelConnectionFactory"
 
 SENTINELS = [("127.0.0.1", 26379)]
 
 CACHES = {
-    "default_sentinel": {
+    "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1?db=7"],
         "OPTIONS": {
@@ -11,7 +13,7 @@ CACHES = {
             "SENTINELS": SENTINELS,
         },
     },
-    "doesnotexist_sentinel": {
+    "doesnotexist": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://missing_service?db=7",
         "OPTIONS": {
@@ -19,15 +21,15 @@ CACHES = {
             "SENTINELS": SENTINELS,
         },
     },
-    "sample_sentinel": {
+    "sample": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://default_service?db=7",
+        "LOCATION": "redis://127.0.0.1?db=7",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.SentinelClient",
             "SENTINELS": SENTINELS,
         },
     },
-    "with_prefix_sentinel": {
+    "with_prefix": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1?db=7",
         "KEY_PREFIX": "test-prefix",
@@ -37,3 +39,7 @@ CACHES = {
         },
     },
 }
+
+INSTALLED_APPS = ["django.contrib.sessions"]
+
+USE_TZ = False

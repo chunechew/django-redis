@@ -1,5 +1,7 @@
+SECRET_KEY = "django_tests_secret_key"
+
 CACHES = {
-    "default_gzip": {
+    "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": ["redis://127.0.0.1:6379?db=2", "redis://127.0.0.1:6379?db=2"],
         "OPTIONS": {
@@ -7,7 +9,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.gzip.GzipCompressor",
         },
     },
-    "doesnotexist_gzip": {
+    "doesnotexist": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:56379?db=2",
         "OPTIONS": {
@@ -15,7 +17,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.gzip.GzipCompressor",
         },
     },
-    "sample_gzip": {
+    "sample": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=2,redis://127.0.0.1:6379?db=2",
         "OPTIONS": {
@@ -23,7 +25,7 @@ CACHES = {
             "COMPRESSOR": "django_redis.compressors.gzip.GzipCompressor",
         },
     },
-    "with_prefix_gzip": {
+    "with_prefix": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379?db=2",
         "OPTIONS": {
@@ -33,3 +35,7 @@ CACHES = {
         "KEY_PREFIX": "test-prefix",
     },
 }
+
+INSTALLED_APPS = ["django.contrib.sessions"]
+
+USE_TZ = False

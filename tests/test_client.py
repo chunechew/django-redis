@@ -2,15 +2,17 @@ from collections.abc import Iterable
 from unittest.mock import Mock, call, patch
 
 import pytest
+from django.core.cache import DEFAULT_CACHE_ALIAS
 from django.test import override_settings
 from pytest_mock import MockerFixture
 
-from django_redis.client import DefaultClient, ShardClient
+from django_redis.cache import RedisCache
+from django_redis.client import ClusterClient, DefaultClient, ShardClient
 from tests.settings_wrapper import SettingsWrapper
 
 
 @pytest.fixture()
-def cache_client(cache) -> Iterable[DefaultClient]:
+def cache_client(cache: RedisCache) -> Iterable[DefaultClient]:
     client = cache.client
     client.set("TestClientClose", 0)
     yield client
@@ -21,8 +23,11 @@ class TestClientClose:
     def test_close_client_disconnect_default(
         self,
         cache_client: DefaultClient,
+        settings: SettingsWrapper,
         mocker: MockerFixture,
     ):
+        if isinstance(cache_client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support TestClientClose")
         cache_client._options.clear()
         mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
         cache_client.close()
@@ -34,6 +39,8 @@ class TestClientClose:
         settings: SettingsWrapper,
         mocker: MockerFixture,
     ):
+        if isinstance(cache_client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support TestClientClose")
         with override_settings(DJANGO_REDIS_CLOSE_CONNECTION=True):
             mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
             cache_client.close()
@@ -44,10 +51,11 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
         settings: SettingsWrapper,
-        suffix: str,
     ):
+        if isinstance(cache_client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support TestClientClose")
         caches = settings.CACHES
-        caches[f"default{suffix}"]["OPTIONS"]["CLOSE_CONNECTION"] = True
+        caches[DEFAULT_CACHE_ALIAS]["OPTIONS"]["CLOSE_CONNECTION"] = True
         with override_settings(CACHES=caches):
             cache_client.set("TestClientClose", 0)
             mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
@@ -59,6 +67,8 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
     ):
+        if isinstance(cache_client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support the CLOSE_CONNECTION option")
         cache_client._options["CLOSE_CONNECTION"] = True
         mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
         cache_client.close()

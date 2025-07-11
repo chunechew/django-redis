@@ -1,11 +1,13 @@
 from redis.cluster import ClusterNode
 
+SECRET_KEY = "django_tests_secret_key"
+
 conn_client = "django_redis.client.ClusterClient"
 conn_factory = "django_redis.pool.ClusterConnectionFactory"
 conn_client_class = "redis.cluster.RedisCluster"
 
 CACHES = {
-    "default_cluster": {
+    "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "OPTIONS": {
@@ -14,14 +16,14 @@ CACHES = {
             "REDIS_CLIENT_CLASS": conn_client_class,
             "REDIS_CLIENT_KWARGS": {
                 "cluster_nodes": [
-                    ClusterNode(host="127.0.1", port=6380),
-                    ClusterNode(host="127.0.1", port=6381),
-                    ClusterNode(host="127.0.1", port=6382),
+                    ClusterNode(host="127.0.0.1", port=6380),
+                    ClusterNode(host="127.0.0.1", port=6381),
+                    ClusterNode(host="127.0.0.1", port=6382),
                 ],
             },
         },
     },
-    "doesnotexist_cluster": {
+    "doesnotexist": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://missing_service:6380",
         "OPTIONS": {
@@ -30,14 +32,14 @@ CACHES = {
             "REDIS_CLIENT_CLASS": conn_client_class,
             "REDIS_CLIENT_KWARGS": {
                 "cluster_nodes": [
-                    ClusterNode(host="missing_service", port=6380),
-                    ClusterNode(host="missing_service", port=6381),
-                    ClusterNode(host="missing_service", port=6382),
+                    ClusterNode(host="127.0.0.1", port=56380),
+                    ClusterNode(host="127.0.0.1", port=56381),
+                    ClusterNode(host="127.0.0.1", port=56382),
                 ],
             },
         },
     },
-    "sample_cluster": {
+    "sample": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "OPTIONS": {
@@ -46,14 +48,14 @@ CACHES = {
             "REDIS_CLIENT_CLASS": conn_client_class,
             "REDIS_CLIENT_KWARGS": {
                 "cluster_nodes": [
-                    ClusterNode(host="127.0.1", port=6380),
-                    ClusterNode(host="127.0.1", port=6381),
-                    ClusterNode(host="127.0.1", port=6382),
+                    ClusterNode(host="127.0.0.1", port=6380),
+                    ClusterNode(host="127.0.0.1", port=6381),
+                    ClusterNode(host="127.0.0.1", port=6382),
                 ],
             },
         },
     },
-    "with_prefix_cluster": {
+    "with_prefix": {
         "BACKEND": "django_redis.cache.RedisCache",
         # "LOCATION": "redis://127.0.0.1:6380",
         "KEY_PREFIX": "test-prefix",
@@ -63,11 +65,15 @@ CACHES = {
             "REDIS_CLIENT_CLASS": conn_client_class,
             "REDIS_CLIENT_KWARGS": {
                 "cluster_nodes": [
-                    ClusterNode(host="127.0.1", port=6380),
-                    ClusterNode(host="127.0.1", port=6381),
-                    ClusterNode(host="127.0.1", port=6382),
+                    ClusterNode(host="127.0.0.1", port=6380),
+                    ClusterNode(host="127.0.0.1", port=6381),
+                    ClusterNode(host="127.0.0.1", port=6382),
                 ],
             },
         },
     },
 }
+
+INSTALLED_APPS = ["django.contrib.sessions"]
+
+USE_TZ = False
