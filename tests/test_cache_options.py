@@ -1,4 +1,3 @@
-import copy
 from collections.abc import Iterable
 from typing import cast
 
