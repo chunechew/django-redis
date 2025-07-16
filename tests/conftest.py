@@ -27,20 +27,6 @@ def pytest_configure(config):
     sys.path.insert(0, str(Path(__file__).absolute().parent))
 
 
-# @pytest.fixture()
-# def base(cache_settings: str) -> Iterable[BaseCache]:
-#     from django import setup
-
-#     environ["DJANGO_SETTINGS_MODULE"] = f"settings.{cache_settings}"
-#     setup()
-
-#     from django.core.cache import cache as default_cache
-
-#     # wrapper = SettingsWrapper()
-
-#     yield default_cache
-
-
 @pytest.fixture()
 def settings():
     """A Django settings object which restores changes after the testrun"""
@@ -67,18 +53,25 @@ def pytest_generate_tests(metafunc):
     if "cache" in metafunc.fixturenames or "session" in metafunc.fixturenames:
         # Mark
         settings = [
-            # "sqlite",
-            "sqlite_cluster",
-            # "sqlite_gzip",
-            # "sqlite_herd",
-            # "sqlite_json",
-            # "sqlite_lz4",
-            # "sqlite_msgpack",
-            # "sqlite_sentinel",
-            # "sqlite_sentinel_opts",
-            # "sqlite_sharding",
-            # "sqlite_usock",
-            # "sqlite_zlib",
-            # "sqlite_zstd",
+            "sqlite",
+            "sqlite_gzip",
+            "sqlite_herd",
+            "sqlite_json",
+            "sqlite_lz4",
+            "sqlite_msgpack",
+            "sqlite_sentinel",
+            "sqlite_sentinel_opts",
+            "sqlite_sharding",
+            "sqlite_usock",
+            "sqlite_zlib",
+            "sqlite_zstd",
         ]
+
+        try:
+            from redis.cluster import RedisCluster  # noqa: F401
+
+            settings.append("sqlite_cluster")
+        except ImportError:
+            pass
+
         metafunc.parametrize("cache_settings", settings)

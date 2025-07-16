@@ -149,14 +149,28 @@ def test_custom_key_function(cache: RedisCache, settings):
         "{same_slot}_foo-bb",
         "{same_slot}_foo-bc",
     ]:
-        cache.set(key, "{same_slot}_foo")
+        cache.set(key, "foo")
 
     res = cache.delete_pattern("*{same_slot}_foo-a*")
     assert bool(res) is True
 
     keys = cache.keys("{same_slot}_foo*")
     assert set(keys) == {"{same_slot}_foo-bb", "{same_slot}_foo-bc"}
+
     # ensure our custom function was actually called
-    assert {k.decode() for k in cache.client.get_client(write=False).keys("*")} == (
-        {"#1#{same_slot}_foo-bc", "#1#{same_slot}_foo-bb"}
-    )
+    prefix = cache.key_prefix
+    version = cache.version
+    scan_pattern = f"{prefix}#{version}#*"
+    expected_keys = {
+        f"{prefix}#{version}#{{same_slot}}_foo-bb",
+        f"{prefix}#{version}#{{same_slot}}_foo-bc",
+    }
+
+    if isinstance(cache.client, ClusterClient):
+        raw_keys = {k.decode() for k in cache.client.get_raw_keys(scan_pattern)}
+        assert raw_keys == expected_keys
+    else:
+        raw_keys = {
+            k.decode() for k in cache.client.get_client(write=False).keys(scan_pattern)
+        }
+        assert raw_keys == expected_keys

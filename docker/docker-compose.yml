@@ -3,7 +3,6 @@ services:
   redis-primary:
     image: redis:latest
     container_name: redis-primary
-    # network_mode: host
     command: >
       redis-server
       --enable-debug-command yes
@@ -17,13 +16,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    # networks:
-    #   - redis-sentinel-net
   
   redis-secondary:
     image: redis:latest
     container_name: redis-secondary
-    # network_mode: host
     depends_on:
       redis-primary:
         condition: service_healthy
@@ -42,15 +38,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    # networks:
-    #   - redis-sentinel-net
 
   redis-sentinel:
     build:
       context: ./sentinel
     image: redis-sentinel-for-test:latest
     container_name: redis-sentinel
-    # network_mode: host
     depends_on:
       redis-secondary:
         condition: service_healthy
@@ -63,9 +56,6 @@ services:
       retries: 5
     extra_hosts:
     - "host.docker.internal:host-gateway"
-    # command: ["redis-server", "/etc/redis/sentinel.conf", "--port", "26379", "--bind", "0.0.0.0", "--sentinel", "--enable-debug-command", "yes", "--protected-mode", "no", "--loglevel", "debug"]
-    # networks:
-    #   - redis-sentinel-net
 
   # Container that includes six Redis Cluster instances
   # (three masters and three slaves - each master has a slave)
@@ -74,7 +64,6 @@ services:
       context: ./cluster
     image: redis-cluster-for-test:latest
     container_name: redis-cluster
-    # network_mode: host
     ports:
       - 6380:6380
       - 6381:6381
@@ -86,11 +75,3 @@ services:
       - ./cluster/cluster-init.sh:/usr/local/bin/cluster-init.sh
       - ./cluster/redis.conf:/etc/redis/redis.conf
       - ./cluster/supervisord.conf:/etc/supervisor/conf.d/supervisord.conf
-#     networks:
-#       - redis-cluster-net
-
-# networks:
-#   redis-sentinel-net:
-#     driver: bridge
-#   redis-cluster-net:
-#     driver: bridge

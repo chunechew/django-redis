@@ -6,7 +6,9 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 from redis import Redis
+from redis.backoff import ExponentialWithJitterBackoff
 from redis.connection import ConnectionPool, DefaultParser, to_bool
+from redis.retry import Retry
 from redis.sentinel import Sentinel
 
 
@@ -214,6 +216,19 @@ class ClusterConnectionFactory(ConnectionFactory):
     # single client, and therefore a single set of connection pools.
     _clients: dict[str, RedisCluster] = {}
     _clients_lock = threading.Lock()
+
+    def make_connection_params(self, url):
+        kwargs = super().make_connection_params(url)
+        if "retry" not in kwargs:
+            # If the user didn't specify a retry,
+            # we will use the default retry with 3 attempts and exponential backoff.
+            retry_attempts = kwargs.pop(
+                "cluster_error_retry_attempts",
+                3,
+            )
+            backoff = ExponentialWithJitterBackoff()
+            kwargs["retry"] = Retry(backoff, retry_attempts)
+        return kwargs
 
     def connect(self, url: str) -> RedisCluster:
         """Given a connection url, return a client instance.
