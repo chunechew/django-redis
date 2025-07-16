@@ -9,9 +9,11 @@ from django.contrib.sessions.backends.cache import SessionStore
 from django.test import override_settings
 from django.utils import timezone
 
+from django_redis.cache import RedisCache
+
 
 @pytest.fixture
-def session(cache) -> Iterable[SessionStore]:
+def session(cache) -> Iterable[RedisCache]:
     s = SessionStore()
 
     yield s
@@ -326,7 +328,7 @@ def test_decode_failure_logged_to_security(session, caplog):
 def test_actual_expiry(session):
     # this doesn't work with JSONSerializer (serializing timedelta)
     with override_settings(
-        SESSION_SERIALIZER="django.contrib.sessions.serializers.PickleSerializer"
+        SESSION_SERIALIZER="django.contrib.sessions.serializers.PickleSerializer",
     ):
         session = SessionStore()  # reinitialize after overriding settings
 

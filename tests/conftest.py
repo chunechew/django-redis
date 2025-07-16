@@ -45,6 +45,7 @@ def cache(cache_settings: str) -> Iterable[BaseCache]:
     from django.core.cache import cache as default_cache
 
     yield default_cache
+
     default_cache.clear()
 
 
@@ -65,4 +66,12 @@ def pytest_generate_tests(metafunc):
             "sqlite_zlib",
             "sqlite_zstd",
         ]
+
+        try:
+            from redis.cluster import RedisCluster  # noqa: F401
+
+            settings.append("sqlite_cluster")
+        except ImportError:
+            pass
+
         metafunc.parametrize("cache_settings", settings)

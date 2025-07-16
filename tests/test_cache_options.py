@@ -1,4 +1,3 @@
-import copy
 from collections.abc import Iterable
 from typing import cast
 
@@ -8,7 +7,7 @@ from pytest import LogCaptureFixture
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from django_redis.cache import RedisCache
-from django_redis.client import ShardClient
+from django_redis.client import ClusterClient, ShardClient
 
 
 def make_key(key: str, prefix: str, version: str) -> str:
@@ -20,8 +19,10 @@ def reverse_key(key: str) -> str:
 
 
 @pytest.fixture
-def ignore_exceptions_cache(settings) -> RedisCache:
-    caches_setting = copy.deepcopy(settings.CACHES)
+def ignore_exceptions_cache(cache, settings) -> RedisCache:
+    caches_setting = settings.CACHES
+    if "doesnotexist" not in caches_setting:
+        return cache
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
     caches_setting["doesnotexist"]["OPTIONS"]["LOG_IGNORED_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
@@ -29,17 +30,24 @@ def ignore_exceptions_cache(settings) -> RedisCache:
     settings.DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
     return cast("RedisCache", caches["doesnotexist"])
 
+# ClusterClient can't the four tests with invalid connection below
+# because it requires a valid node connection.
 
 def test_get_django_omit_exceptions_many_returns_default_arg(
     ignore_exceptions_cache: RedisCache,
 ):
+    if isinstance(ignore_exceptions_cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache.get_many(["key1", "key2", "key3"]) == {}
 
 
 def test_get_django_omit_exceptions(
-    caplog: LogCaptureFixture, ignore_exceptions_cache: RedisCache
+    caplog: LogCaptureFixture,
+    ignore_exceptions_cache: RedisCache,
 ):
+    if isinstance(ignore_exceptions_cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache._log_ignored_exceptions is True
 
@@ -54,30 +62,34 @@ def test_get_django_omit_exceptions(
     )
 
 
-def test_get_django_omit_exceptions_priority_1(settings):
-    caches_setting = copy.deepcopy(settings.CACHES)
+def test_get_django_omit_exceptions_priority_1(cache, settings):
+    if isinstance(cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    caches_setting = settings.CACHES
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
     settings.DJANGO_REDIS_IGNORE_EXCEPTIONS = False
-    cache = cast("RedisCache", caches["doesnotexist"])
-    assert cache._ignore_exceptions is True
-    assert cache.get("key") is None
+    _cache = cast("RedisCache", caches["doesnotexist"])
+    assert _cache._ignore_exceptions is True
+    assert _cache.get("key") is None
 
 
-def test_get_django_omit_exceptions_priority_2(settings):
-    caches_setting = copy.deepcopy(settings.CACHES)
+def test_get_django_omit_exceptions_priority_2(cache, settings):
+    if isinstance(cache.client, ClusterClient):
+        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    caches_setting = settings.CACHES
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = False
     settings.CACHES = caches_setting
     settings.DJANGO_REDIS_IGNORE_EXCEPTIONS = True
-    cache = cast("RedisCache", caches["doesnotexist"])
-    assert cache._ignore_exceptions is False
+    _cache = cast("RedisCache", caches["doesnotexist"])
+    assert _cache._ignore_exceptions is False
     with pytest.raises(RedisConnectionError):
-        cache.get("key")
+        _cache.get("key")
 
 
 @pytest.fixture
 def key_prefix_cache(cache: RedisCache, settings) -> Iterable[RedisCache]:
-    caches_setting = copy.deepcopy(settings.CACHES)
+    caches_setting = settings.CACHES
     caches_setting["default"]["KEY_PREFIX"] = "*"
     settings.CACHES = caches_setting
     yield cache
@@ -92,34 +104,38 @@ def with_prefix_cache() -> Iterable[RedisCache]:
 
 class TestDjangoRedisCacheEscapePrefix:
     def test_delete_pattern(
-        self, key_prefix_cache: RedisCache, with_prefix_cache: RedisCache
+        self,
+        key_prefix_cache: RedisCache,
+        with_prefix_cache: RedisCache,
     ):
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        key_prefix_cache.delete_pattern("*")
-        assert key_prefix_cache.has_key("a") is False
-        assert with_prefix_cache.get("b") == "2"
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        key_prefix_cache.delete_pattern("{same_slot}_*")
+        assert key_prefix_cache.has_key("{same_slot}_a") is False
+        assert with_prefix_cache.get("{same_slot}_b") == "2"
 
     def test_iter_keys(
-        self, key_prefix_cache: RedisCache, with_prefix_cache: RedisCache
+        self,
+        key_prefix_cache: RedisCache,
+        with_prefix_cache: RedisCache,
     ):
         if isinstance(key_prefix_cache.client, ShardClient):
             pytest.skip("ShardClient doesn't support iter_keys")
 
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        assert list(key_prefix_cache.iter_keys("*")) == ["a"]
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        assert list(key_prefix_cache.iter_keys("{same_slot}_*")) == ["{same_slot}_a"]
 
     def test_keys(self, key_prefix_cache: RedisCache, with_prefix_cache: RedisCache):
-        key_prefix_cache.set("a", "1")
-        with_prefix_cache.set("b", "2")
-        keys = key_prefix_cache.keys("*")
-        assert "a" in keys
-        assert "b" not in keys
+        key_prefix_cache.set("{same_slot}_a", "1")
+        with_prefix_cache.set("{same_slot}_b", "2")
+        keys = key_prefix_cache.keys("{same_slot}_*")
+        assert "{same_slot}_a" in keys
+        assert "{same_slot}_b" not in keys
 
 
 def test_custom_key_function(cache: RedisCache, settings):
-    caches_setting = copy.deepcopy(settings.CACHES)
+    caches_setting = settings.CACHES
     caches_setting["default"]["KEY_FUNCTION"] = "test_cache_options.make_key"
     caches_setting["default"]["REVERSE_KEY_FUNCTION"] = "test_cache_options.reverse_key"
     settings.CACHES = caches_setting
@@ -127,15 +143,34 @@ def test_custom_key_function(cache: RedisCache, settings):
     if isinstance(cache.client, ShardClient):
         pytest.skip("ShardClient doesn't support get_client")
 
-    for key in ["foo-aa", "foo-ab", "foo-bb", "foo-bc"]:
+    for key in [
+        "{same_slot}_foo-aa",
+        "{same_slot}_foo-ab",
+        "{same_slot}_foo-bb",
+        "{same_slot}_foo-bc",
+    ]:
         cache.set(key, "foo")
 
-    res = cache.delete_pattern("*foo-a*")
+    res = cache.delete_pattern("*{same_slot}_foo-a*")
     assert bool(res) is True
 
-    keys = cache.keys("foo*")
-    assert set(keys) == {"foo-bb", "foo-bc"}
+    keys = cache.keys("{same_slot}_foo*")
+    assert set(keys) == {"{same_slot}_foo-bb", "{same_slot}_foo-bc"}
+
     # ensure our custom function was actually called
-    assert {k.decode() for k in cache.client.get_client(write=False).keys("*")} == (
-        {"#1#foo-bc", "#1#foo-bb"}
-    )
+    prefix = cache.key_prefix
+    version = cache.version
+    scan_pattern = f"{prefix}#{version}#*"
+    expected_keys = {
+        f"{prefix}#{version}#{{same_slot}}_foo-bb",
+        f"{prefix}#{version}#{{same_slot}}_foo-bc",
+    }
+
+    if isinstance(cache.client, ClusterClient):
+        raw_keys = {k.decode() for k in cache.client.get_raw_keys(scan_pattern)}
+        assert raw_keys == expected_keys
+    else:
+        raw_keys = {
+            k.decode() for k in cache.client.get_client(write=False).keys(scan_pattern)
+        }
+        assert raw_keys == expected_keys
