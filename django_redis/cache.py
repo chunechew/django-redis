@@ -1,11 +1,14 @@
 import functools
 import logging
 from typing import Any, Callable, Optional
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from django import VERSION as DJANGO_VERSION
 from django.conf import settings
 from django.core.cache.backends.base import BaseCache
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
+from redis.cluster import ClusterNode
 
 from django_redis.exceptions import ConnectionInterrupted
 
@@ -13,7 +16,8 @@ CONNECTION_INTERRUPTED = object()
 
 
 def omit_exception(
-    method: Optional[Callable] = None, return_value: Optional[Any] = None
+    method: Optional[Callable] = None,
+    return_value: Optional[Any] = None,
 ):
     """
     Simple decorator that intercepts connection
@@ -44,12 +48,15 @@ class RedisCache(BaseCache):
         self._server = server
         self._params = params
         self._default_scan_itersize = getattr(
-            settings, "DJANGO_REDIS_SCAN_ITERSIZE", 10
+            settings,
+            "DJANGO_REDIS_SCAN_ITERSIZE",
+            10,
         )
 
         options = params.get("OPTIONS", {})
         self._client_cls = options.get(
-            "CLIENT_CLASS", "django_redis.client.DefaultClient"
+            "CLIENT_CLASS",
+            "django_redis.client.DefaultClient",
         )
         self._client_cls = import_string(self._client_cls)
         self._client = None
@@ -59,13 +66,18 @@ class RedisCache(BaseCache):
             getattr(settings, "DJANGO_REDIS_IGNORE_EXCEPTIONS", False),
         )
         self._log_ignored_exceptions = getattr(
-            settings, "DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS", False
+            settings,
+            "DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS",
+            False,
         )
         self.logger = (
             logging.getLogger(getattr(settings, "DJANGO_REDIS_LOGGER", __name__))
             if self._log_ignored_exceptions
             else None
         )
+
+        if not self._server:
+            self.get_server(self._params.get("OPTIONS", {}))
 
     @property
     def client(self):
@@ -75,6 +87,70 @@ class RedisCache(BaseCache):
         if self._client is None:
             self._client = self._client_cls(self._server, self._params, self)
         return self._client
+
+    def get_server(self, options):
+        redis_client_kwargs = options.get("REDIS_CLIENT_KWARGS", {})
+
+        if "cluster_nodes" not in redis_client_kwargs:
+            error_message = (
+                "Missing connections in 'LOCATION' "
+                "or 'cluster_nodes' in REDIS_CLIENT_KWARGS. "
+            )
+            raise ImproperlyConfigured(error_message)
+
+        cluster_nodes = redis_client_kwargs["cluster_nodes"]
+
+        if isinstance(cluster_nodes, (list, tuple)):
+            nodes = cluster_nodes
+        elif isinstance(cluster_nodes, str):
+            nodes = cluster_nodes.split(",")
+        elif isinstance(cluster_nodes, ClusterNode):
+            nodes = [cluster_nodes]
+
+        self._server = self.parse_url(options, nodes)
+
+        if len(self._server) == 0:
+            error_message = (
+                "No valid Redis node provided in LOCATION or REDIS_CLIENT_KWARGS."
+            )
+            raise ImproperlyConfigured(error_message)
+
+    def parse_url(self, options, nodes):
+        _server = []
+        for node in nodes:
+            if isinstance(node, ClusterNode):
+                host = node.host
+                port = node.port
+                username = options.get("username", "")
+                password = options.get("password", "")
+                ssl = options.get("ssl", False)
+                protocol = "rediss" if ssl else "redis"
+                url_str = f"{host}:{port}"
+                if username or password:
+                    url_str = f"{username}:{password}@{url_str}"
+                url_str = f"{protocol}://{url_str}"
+                url = urlparse(url_str)
+            elif isinstance(node, str):
+                url = urlparse(node)
+            else:
+                continue
+            query_params = parse_qs(url.query)
+            if "is_master" in query_params:
+                del query_params["is_master"]
+            new_query = urlencode(query_params, doseq=True)
+            new_url = urlunparse(
+                (
+                    url.scheme,
+                    url.netloc,
+                    url.path,
+                    url.params,
+                    new_query,
+                    url.fragment,
+                ),
+            )
+            _server.append(new_url)
+        return _server
+
 
     @omit_exception
     def set(self, *args, **kwargs):

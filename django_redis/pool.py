@@ -1,10 +1,14 @@
+import threading
+from copy import deepcopy
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 from redis import Redis
+from redis.backoff import ExponentialWithJitterBackoff
 from redis.connection import ConnectionPool, DefaultParser, to_bool
+from redis.retry import Retry
 from redis.sentinel import Sentinel
 
 
@@ -19,7 +23,8 @@ class ConnectionFactory:
 
     def __init__(self, options):
         pool_cls_path = options.get(
-            "CONNECTION_POOL_CLASS", "redis.connection.ConnectionPool"
+            "CONNECTION_POOL_CLASS",
+            "redis.connection.ConnectionPool",
         )
         self.pool_cls = import_string(pool_cls_path)
         self.pool_cls_kwargs = options.get("CONNECTION_POOL_KWARGS", {})
@@ -87,7 +92,8 @@ class ConnectionFactory:
         """
         pool = self.get_or_create_connection_pool(params)
         return self.redis_client_cls(
-            connection_pool=pool, **self.redis_client_cls_kwargs
+            connection_pool=pool,
+            **self.redis_client_cls_kwargs,
         )
 
     def get_parser_cls(self):
@@ -132,7 +138,8 @@ class SentinelConnectionFactory(ConnectionFactory):
     def __init__(self, options):
         # allow overriding the default SentinelConnectionPool class
         options.setdefault(
-            "CONNECTION_POOL_CLASS", "redis.sentinel.SentinelConnectionPool"
+            "CONNECTION_POOL_CLASS",
+            "redis.sentinel.SentinelConnectionPool",
         )
         super().__init__(options)
 
@@ -175,14 +182,94 @@ class SentinelConnectionFactory(ConnectionFactory):
         new_query = urlencode(query_params, doseq=True)
 
         new_url = urlunparse(
-            (url.scheme, url.netloc, url.path, url.params, new_query, url.fragment)
+            (url.scheme, url.netloc, url.path, url.params, new_query, url.fragment),
         )
 
         cp_params.update(
-            service_name=url.hostname, sentinel_manager=self._sentinel, url=new_url
+            service_name=url.hostname,
+            sentinel_manager=self._sentinel,
+            url=new_url,
         )
 
         return super().get_connection_pool(cp_params)
+
+
+
+class ClusterConnectionFactory(ConnectionFactory):
+    """
+    A connection factory compatible with `redis.cluster.RedisCluster`
+    The cluster client manages connection pools internally, so we don't
+    want to do it at this level like the base `ConnectionFactory` does.
+    """
+
+    try:
+        from redis.cluster import RedisCluster
+    except ImportError as err:
+        error_message = (
+            "`ClusterConnectionFactory` requires the `redis` package "
+            "with Redis Cluster support. "
+            "Please install `django-redis[cluster]` or `redis>=6.2.0`."
+        )
+        raise ImproperlyConfigured(error_message) from err
+
+    # A global cache of URL->client so that within a process, we will reuse a
+    # single client, and therefore a single set of connection pools.
+    _clients: dict[str, RedisCluster] = {}
+    _clients_lock = threading.Lock()
+
+    def make_connection_params(self, url):
+        kwargs = super().make_connection_params(url)
+        if "retry" not in kwargs:
+            # If the user didn't specify a retry,
+            # we will use the default retry with 3 attempts and exponential backoff.
+            retry_attempts = kwargs.pop(
+                "cluster_error_retry_attempts",
+                3,
+            )
+            backoff = ExponentialWithJitterBackoff()
+            kwargs["retry"] = Retry(backoff, retry_attempts)
+        return kwargs
+
+    def connect(self, url: str) -> RedisCluster:
+        """Given a connection url, return a client instance.
+        Prefer to return from our cache but if we don't yet have one build it
+        to populate the cache.
+        """
+        if url not in self._clients:
+            with self._clients_lock:
+                if url not in self._clients:
+                    self._clients[url] = self._connect(url)
+        return self._clients[url]
+
+    def _connect(self, url: str) -> RedisCluster:
+        """
+        Given a connection url, return a new client instance.
+        Basic `django-redis` `ConnectionFactory` manages a cache of connection
+        pools and builds a fresh client each time. Because the cluster client
+        manages its own connection pools, we will instead merge the
+        "connection" and "client" kwargs and throw them all at the client to
+        sort out.
+        If we find conflicting client and connection kwargs, we'll raise an
+        error.
+        """
+        # Get connection and client kwargs...
+        connection_params = self.make_connection_params(url)
+        client_cls_kwargs = deepcopy(self.redis_client_cls_kwargs)
+
+        # ... and smash 'em together (crashing if there's conflicts)...
+        for key, value in connection_params.items():
+            if key in client_cls_kwargs:
+                error_message = (
+                    f"Found '{key}' in both the connection and the client kwargs"
+                )
+                raise ImproperlyConfigured(error_message)
+            client_cls_kwargs[key] = value
+
+        # ... and then build and return the client
+        return self.redis_client_cls(**client_cls_kwargs)
+
+    def disconnect(self, connection: RedisCluster):
+        connection.disconnect_connection_pools()
 
 
 def get_connection_factory(path=None, options=None):
