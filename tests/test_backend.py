@@ -13,7 +13,7 @@ from django.test import override_settings
 from pytest_mock import MockerFixture
 
 from django_redis.cache import RedisCache
-from django_redis.client import ClusterClient, ShardClient, herd
+from django_redis.client import ShardClient, herd
 from django_redis.serializers.json import JSONSerializer
 from django_redis.serializers.msgpack import MSGPackSerializer
 from tests.settings_wrapper import SettingsWrapper
@@ -31,8 +31,14 @@ def patch_itersize_setting() -> Iterable[None]:
 
 class TestDjangoRedisCache:
     def test_setnx(self, cache: RedisCache):
-        if isinstance(cache.client, ClusterClient):
-            pytest.skip("ClusterClient doesn't support setnx without timeout")
+        try:
+            from django_redis.client import ClusterClient
+
+            if isinstance(cache.client, ClusterClient):
+                pytest.skip("ClusterClient doesn't support setnx without timeout")
+        except ImportError:
+            pass
+
         # we should ensure there is no {same_slot}_test_key_nx in redis
         cache.delete("{same_slot}_test_key_nx")
         res = cache.get("{same_slot}_test_key_nx")

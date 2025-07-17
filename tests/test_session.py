@@ -9,11 +9,9 @@ from django.contrib.sessions.backends.cache import SessionStore
 from django.test import override_settings
 from django.utils import timezone
 
-from django_redis.cache import RedisCache
-
 
 @pytest.fixture
-def session(cache) -> Iterable[RedisCache]:
+def session(cache) -> Iterable[SessionStore]:
     s = SessionStore()
 
     yield s

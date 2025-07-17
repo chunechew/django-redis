@@ -7,7 +7,7 @@ from pytest import LogCaptureFixture
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from django_redis.cache import RedisCache
-from django_redis.client import ClusterClient, ShardClient
+from django_redis.client import ShardClient
 
 
 def make_key(key: str, prefix: str, version: str) -> str:
@@ -36,8 +36,13 @@ def ignore_exceptions_cache(cache, settings) -> RedisCache:
 def test_get_django_omit_exceptions_many_returns_default_arg(
     ignore_exceptions_cache: RedisCache,
 ):
-    if isinstance(ignore_exceptions_cache.client, ClusterClient):
-        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    try:
+        from django_redis.client import ClusterClient
+
+        if isinstance(ignore_exceptions_cache.client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    except ImportError:
+        pass
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache.get_many(["key1", "key2", "key3"]) == {}
 
@@ -46,8 +51,13 @@ def test_get_django_omit_exceptions(
     caplog: LogCaptureFixture,
     ignore_exceptions_cache: RedisCache,
 ):
-    if isinstance(ignore_exceptions_cache.client, ClusterClient):
-        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    try:
+        from django_redis.client import ClusterClient
+
+        if isinstance(ignore_exceptions_cache.client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    except ImportError:
+        pass
     assert ignore_exceptions_cache._ignore_exceptions is True
     assert ignore_exceptions_cache._log_ignored_exceptions is True
 
@@ -63,8 +73,13 @@ def test_get_django_omit_exceptions(
 
 
 def test_get_django_omit_exceptions_priority_1(cache, settings):
-    if isinstance(cache.client, ClusterClient):
-        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    try:
+        from django_redis.client import ClusterClient
+
+        if isinstance(cache.client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    except ImportError:
+        pass
     caches_setting = settings.CACHES
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = True
     settings.CACHES = caches_setting
@@ -75,8 +90,13 @@ def test_get_django_omit_exceptions_priority_1(cache, settings):
 
 
 def test_get_django_omit_exceptions_priority_2(cache, settings):
-    if isinstance(cache.client, ClusterClient):
-        pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    try:
+        from django_redis.client import ClusterClient
+
+        if isinstance(cache.client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support doesnotexist cache")
+    except ImportError:
+        pass
     caches_setting = settings.CACHES
     caches_setting["doesnotexist"]["OPTIONS"]["IGNORE_EXCEPTIONS"] = False
     settings.CACHES = caches_setting
@@ -166,10 +186,18 @@ def test_custom_key_function(cache: RedisCache, settings):
         f"{prefix}#{version}#{{same_slot}}_foo-bc",
     }
 
-    if isinstance(cache.client, ClusterClient):
-        raw_keys = {k.decode() for k in cache.client.get_raw_keys(scan_pattern)}
-        assert raw_keys == expected_keys
-    else:
+    try:
+        from django_redis.client import ClusterClient
+
+        if isinstance(cache.client, ClusterClient):
+            raw_keys = {k.decode() for k in cache.client.get_raw_keys(scan_pattern)}
+            assert raw_keys == expected_keys
+        else:
+            raw_keys = {
+                k.decode() for k in cache.client.get_client(write=False).keys(scan_pattern)
+            }
+            assert raw_keys == expected_keys
+    except ImportError:
         raw_keys = {
             k.decode() for k in cache.client.get_client(write=False).keys(scan_pattern)
         }

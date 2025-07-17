@@ -81,7 +81,7 @@ class ClusterClient(DefaultClient):
         self,
         search: str,
         itersize: Optional[int] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
         version: Optional[int] = None,
     ) -> Iterator[str]:
         """
@@ -117,7 +117,7 @@ class ClusterClient(DefaultClient):
         self,
         search: str,
         version: Optional[int] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
     ) -> list[Any]:
         """
         Cluster-aware `keys` implementation.
@@ -130,7 +130,7 @@ class ClusterClient(DefaultClient):
         pattern: str,
         version: Optional[int] = None,
         prefix: Optional[str] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
         itersize: Optional[int] = None,
     ) -> int:
         """
@@ -173,7 +173,7 @@ class ClusterClient(DefaultClient):
         key: "KeyT",
         version: Optional[int] = None,
         prefix: Optional[str] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
     ) -> int:
         """
         Deletes a single key. The parent implementation is sufficient as
@@ -189,7 +189,7 @@ class ClusterClient(DefaultClient):
         self,
         keys: Iterable["KeyT"],
         version: Optional[int] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
     ) -> int:
         """
         Deletes multiple keys. The parent implementation works correctly
@@ -201,7 +201,7 @@ class ClusterClient(DefaultClient):
 
         return super().delete_many(keys, version=version, client=client)
 
-    def clear(self, client: Optional["RedisCluster"] = None) -> None:
+    def clear(self, client=None) -> None:
         """
         Flush all cache keys from all primary nodes in the cluster.
         """
@@ -218,7 +218,7 @@ class ClusterClient(DefaultClient):
         self,
         pattern: str = "*",
         itersize: Optional[int] = None,
-        client: Optional["RedisCluster"] = None,
+        client=None,
     ) -> Iterator[bytes]:
         """
         A helper method for tests.

@@ -6,7 +6,6 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 from redis import Redis
-from redis.backoff import ExponentialWithJitterBackoff
 from redis.connection import ConnectionPool, DefaultParser, to_bool
 from redis.retry import Retry
 from redis.sentinel import Sentinel
@@ -218,6 +217,8 @@ class ClusterConnectionFactory(ConnectionFactory):
     _clients_lock = threading.Lock()
 
     def make_connection_params(self, url):
+        from redis.backoff import ExponentialWithJitterBackoff
+
         kwargs = super().make_connection_params(url)
         if "retry" not in kwargs:
             # If the user didn't specify a retry,
@@ -230,7 +231,7 @@ class ClusterConnectionFactory(ConnectionFactory):
             kwargs["retry"] = Retry(backoff, retry_attempts)
         return kwargs
 
-    def connect(self, url: str) -> RedisCluster:
+    def connect(self, url: str):
         """Given a connection url, return a client instance.
         Prefer to return from our cache but if we don't yet have one build it
         to populate the cache.
@@ -241,7 +242,7 @@ class ClusterConnectionFactory(ConnectionFactory):
                     self._clients[url] = self._connect(url)
         return self._clients[url]
 
-    def _connect(self, url: str) -> RedisCluster:
+    def _connect(self, url: str):
         """
         Given a connection url, return a new client instance.
         Basic `django-redis` `ConnectionFactory` manages a cache of connection
@@ -268,7 +269,7 @@ class ClusterConnectionFactory(ConnectionFactory):
         # ... and then build and return the client
         return self.redis_client_cls(**client_cls_kwargs)
 
-    def disconnect(self, connection: RedisCluster):
+    def disconnect(self, connection):
         connection.disconnect_connection_pools()
 
 

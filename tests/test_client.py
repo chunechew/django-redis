@@ -7,7 +7,7 @@ from django.test import override_settings
 from pytest_mock import MockerFixture
 
 from django_redis.cache import RedisCache
-from django_redis.client import ClusterClient, DefaultClient, ShardClient
+from django_redis.client import DefaultClient, ShardClient
 from tests.settings_wrapper import SettingsWrapper
 
 
@@ -31,8 +31,14 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
     ):
-        if isinstance(cache_client, ClusterClient):
-            pytest.skip("ClusterClient doesn't support TestClientClose")
+        try:
+            from django_redis.client import ClusterClient
+
+            if isinstance(cache_client, ClusterClient):
+                pytest.skip("ClusterClient doesn't support TestClientClose")
+        except ImportError:
+            pass
+
         cache_client._options.clear()
         mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
         cache_client.close()
@@ -44,8 +50,14 @@ class TestClientClose:
         settings: SettingsWrapper,
         mocker: MockerFixture,
     ):
-        if isinstance(cache_client, ClusterClient):
-            pytest.skip("ClusterClient doesn't support TestClientClose")
+        try:
+            from django_redis.client import ClusterClient
+
+            if isinstance(cache_client, ClusterClient):
+                pytest.skip("ClusterClient doesn't support TestClientClose")
+        except ImportError:
+            pass
+
         with override_settings(DJANGO_REDIS_CLOSE_CONNECTION=True):
             mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
             cache_client.close()
@@ -57,8 +69,14 @@ class TestClientClose:
         mocker: MockerFixture,
         settings: SettingsWrapper,
     ):
-        if isinstance(cache_client, ClusterClient):
-            pytest.skip("ClusterClient doesn't support TestClientClose")
+        try:
+            from django_redis.client import ClusterClient
+
+            if isinstance(cache_client, ClusterClient):
+                pytest.skip("ClusterClient doesn't support TestClientClose")
+        except ImportError:
+            pass
+
         caches = settings.CACHES
         caches[DEFAULT_CACHE_ALIAS]["OPTIONS"]["CLOSE_CONNECTION"] = True
         with override_settings(CACHES=caches):
@@ -72,8 +90,14 @@ class TestClientClose:
         cache_client: DefaultClient,
         mocker: MockerFixture,
     ):
-        if isinstance(cache_client, ClusterClient):
-            pytest.skip("ClusterClient doesn't support the CLOSE_CONNECTION option")
+        try:
+            from django_redis.client import ClusterClient
+
+            if isinstance(cache_client, ClusterClient):
+                pytest.skip("ClusterClient doesn't support the CLOSE_CONNECTION option")
+        except ImportError:
+            pass
+
         cache_client._options["CLOSE_CONNECTION"] = True
         mock = mocker.patch.object(cache_client.connection_factory, "disconnect")
         cache_client.close()

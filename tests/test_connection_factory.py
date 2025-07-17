@@ -2,7 +2,6 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 
 from django_redis import pool
-from django_redis.client import ClusterClient
 
 
 def test_connection_factory_redefine_from_opts():
@@ -24,8 +23,13 @@ def test_connection_factory_redefine_from_opts():
     ],
 )
 def test_connection_factory_opts(cache, conn_factory: str, expected):
-    if isinstance(cache.client, ClusterClient):
-        pytest.skip("ClusterClient doesn't support SentinelConnectionFactory")
+    try:
+        from django_redis.client import ClusterClient
+        if isinstance(cache.client, ClusterClient):
+            pytest.skip("ClusterClient doesn't support SentinelConnectionFactory")
+    except ImportError:
+        pass
+
     cf = pool.get_connection_factory(
         path=None,
         options={
